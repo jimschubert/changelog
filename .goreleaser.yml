@@ -27,6 +27,9 @@ builds:
         goarch: 386
       - goos: windows
         goarch: 386
+    # Path to main.go file or main package.
+    # Default is `.`.
+    main: ./cmd/main.go
 archives:
   - replacements:
       darwin: Darwin
