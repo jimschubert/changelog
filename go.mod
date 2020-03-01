@@ -1,4 +1,4 @@
-module gh-changelog
+module changelog
 
 go 1.14
 
