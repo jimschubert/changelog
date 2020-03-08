@@ -1,10 +1,28 @@
+// Copyright 2020 Jim Schubert
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
 	"fmt"
-	"github.com/jessevdk/go-flags"
 	"os"
 	"strings"
+
+	"github.com/jessevdk/go-flags"
+
+	"changelog"
+	"changelog/model"
 )
 
 var version = ""
@@ -13,15 +31,15 @@ var commit = ""
 var projectName = ""
 
 var opts struct {
-	Owner string `short:"o" long:"owner" description:"GitHub Owner/Org name (required)" required:"true"`
+	Owner string `short:"o" long:"owner" description:"GitHub Owner/Org name (required)" required:"true" env:"GITHUB_OWNER"`
 
-	Repo string `short:"r" long:"repo" description:"GitHub Repo name (required)" required:"true"`
+	Repo string `short:"r" long:"repo" description:"GitHub Repo name (required)" required:"true" env:"GITHUB_REPO"`
 
 	From string `short:"f" long:"from" description:"Begin changelog from this commit or tag"`
 
-	To string `short:"t" long:"to" description:"End changelog at this commit or tag"`
+	To string `short:"t" long:"to" description:"End changelog at this commit or tag" default:"HEAD"`
 
-	Config string `short:"c" long:"config" description:"Config file location for more advanced options"`
+	Config *string `short:"c" long:"config" description:"Config file location for more advanced options beyond defaults"`
 
 	Version bool `short:"v" long:"version" description:"Display version information"`
 }
@@ -51,4 +69,16 @@ func main() {
 		return
 	}
 
+	config := model.LoadOrNewConfig(opts.Config, opts.Owner, opts.Repo)
+
+	changes := changelog.Changelog{
+		Config: config,
+		From:   opts.From,
+		To:     opts.To,
+	}
+
+	err = changes.Generate(os.Stdout)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stdout, "generation failed: %s", err)
+	}
 }

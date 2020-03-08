@@ -1,3 +1,17 @@
+// Copyright 2020 Jim Schubert
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package model
 
 import "fmt"
@@ -8,6 +22,22 @@ const (
 	Commits      ResolveType = 1 << iota
 	PullRequests ResolveType = 1 << iota
 )
+
+func (r *ResolveType) MarshalJSON() ([]byte, error) {
+	if r == nil {
+		return []byte(""), nil
+	}
+
+	it := *r
+	switch it {
+	case PullRequests:
+		return []byte(`"pulls"`), nil
+	case Commits:
+		fallthrough
+	default:
+		return []byte(`"commits"`), nil
+	}
+}
 
 func (r *ResolveType) UnmarshalJSON(b []byte) error {
 	if len(b) == 1 {
@@ -29,11 +59,11 @@ func (r *ResolveType) UnmarshalJSON(b []byte) error {
 
 func (r ResolveType) String() string {
 	switch r {
-	case Commits:
-		return "commits"
 	case PullRequests:
 		return "pulls"
+	case Commits:
+		fallthrough
 	default:
-		panic("code is unreachable")
+		return "commits"
 	}
 }
