@@ -31,6 +31,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Docker Login Github
+        run: >-
+          echo "${{ secrets.GPR_TOKEN }}"
+          | docker login -u jimschubert --password-stdin docker.pkg.github.com
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v1
         with:
