@@ -88,3 +88,26 @@ func TestResolveType_MarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveType_MarshalJSON1(t *testing.T) {
+	tests := []struct {
+		name    string
+		r       *ResolveType
+		want    []byte
+		wantErr bool
+	}{
+		{"marshal commits on nil instance succeeds with empty result", nil, []byte(""), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.r.MarshalJSON()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MarshalJSON() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

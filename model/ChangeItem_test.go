@@ -257,3 +257,99 @@ func TestChangeItem_getCommitHashShort(t *testing.T) {
 		})
 	}
 }
+
+func TestChangeItem_CommitURL(t *testing.T) {
+	type fields struct {
+		CommitURL_     *string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{ "empty CommitURL", fields{CommitURL_: nil}, ""},
+		{ "populated CommitURL", fields{CommitURL_: p("https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd")}, "https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ci := &ChangeItem{
+				CommitURL_:     tt.fields.CommitURL_,
+			}
+			if got := ci.CommitURL(); got != tt.want {
+				t.Errorf("CommitURL() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestChangeItem_Title(t *testing.T) {
+	type fields struct {
+		CommitMessage_ *string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{"empty Title from nil CommitMessage", fields{CommitMessage_: nil}, ""},
+		{"empty Title from empty CommitMessage", fields{CommitMessage_: p("")}, ""},
+		{"empty Title from single-line CommitMessage", fields{CommitMessage_: p("Initial Commit")}, "Initial Commit"},
+		{"empty Title from multi-line CommitMessage",
+			fields{CommitMessage_: p(
+				`Initial Commit
+					
+					This is the initial commit
+					`)},
+			"Initial Commit"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ci := &ChangeItem{
+				CommitMessage_: tt.fields.CommitMessage_,
+			}
+			if got := ci.Title(); got != tt.want {
+				t.Errorf("Title() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestChangeItem_GoString(t *testing.T) {
+	type fields struct {
+		Author_        *string
+		AuthorURL_     *string
+		CommitMessage_ *string
+		Date_          *time.Time
+		IsPull_        *bool
+		PullURL_       *string
+		CommitHash_    *string
+		CommitURL_     *string
+		Group_         *string
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{"GoString should not error when fields are nil", fields{}, "ChangeItem: { Commit: , Author_: , Time: 0001-01-01 00:00:00 +0000 UTC, CommitMessage_:  }"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ci := &ChangeItem{
+				Author_:        tt.fields.Author_,
+				AuthorURL_:     tt.fields.AuthorURL_,
+				CommitMessage_: tt.fields.CommitMessage_,
+				Date_:          tt.fields.Date_,
+				IsPull_:        tt.fields.IsPull_,
+				PullURL_:       tt.fields.PullURL_,
+				CommitHash_:    tt.fields.CommitHash_,
+				CommitURL_:     tt.fields.CommitURL_,
+				Group_:         tt.fields.Group_,
+			}
+			if got := ci.GoString(); got != tt.want {
+				t.Errorf("GoString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

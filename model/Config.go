@@ -67,17 +67,21 @@ func (c *Config) Load(path string) error {
 func (c *Config) String() string {
 	var buffer bytes.Buffer
 
-	buffer.WriteString("Config:")
-	buffer.WriteString(fmt.Sprintf("\n\tResolveType: %s", c.ResolveType))
-	buffer.WriteString("\n\tOwner: ")
-	buffer.WriteString(c.Owner)
-	buffer.WriteString("\n\tRepo: ")
-	buffer.WriteString(c.Repo)
-	buffer.WriteString(fmt.Sprintf("\n\tGroupings: %v", c.Groupings))
-	buffer.WriteString(fmt.Sprintf("\n\tExclude: %v", c.Exclude))
-	buffer.WriteString(fmt.Sprintf("\n\tEnterprise: %v", c.Enterprise))
-	buffer.WriteString(fmt.Sprintf("\n\tTemplate: %v", c.Template))
-
+	buffer.WriteString("Config: { ")
+	buffer.WriteString(fmt.Sprintf(`ResolveType: %s`, c.ResolveType))
+	buffer.WriteString(fmt.Sprintf(` Owner: %s`, c.Owner))
+	buffer.WriteString(fmt.Sprintf(` Repo: %s`, c.Repo))
+	buffer.WriteString(fmt.Sprintf(` Groupings: %v`, c.Groupings))
+	buffer.WriteString(fmt.Sprintf(` Exclude: %v`, c.Exclude))
+	buffer.WriteString(" Enterprise: ")
+	if c.Enterprise != nil {
+		buffer.WriteString(*c.Enterprise)
+	}
+	buffer.WriteString(" Template: ")
+	if c.Template != nil {
+		buffer.WriteString(*c.Template)
+	}
+	buffer.WriteString(" }")
 	return fmt.Sprintf(buffer.String())
 }
 

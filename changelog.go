@@ -38,7 +38,7 @@ type data struct {
 }
 
 func newContext(c context.Context) (context.Context, context.CancelFunc) {
-	timeout, cancel := context.WithTimeout(c, 30*time.Second)
+	timeout, cancel := context.WithTimeout(c, 10*time.Second)
 	return timeout, cancel
 }
 
@@ -59,16 +59,10 @@ func (c *Changelog) Generate(writer io.Writer) error {
 		end = DefaultEnd
 	}
 
-	// _, _ = writer.Write([]byte(fmt.Sprintf("Changelog %s..%s\n%s\n", start, end, c.Config)))
+	c.From = start
+	c.To = end
 
-	// switch *c.Config.ResolveType {
-	// case model.PullRequests:
-	// 	_, _ = writer.Write([]byte("Chose PRs"))
-	// case model.Commits:
-	// 	fallthrough
-	// default:
-	// 	_, _ = writer.Write([]byte("Chose Commits"))
-	// }
+	// _, _ = writer.Write([]byte(fmt.Sprintf("Changelog %s..%s\n%s\n", start, end, c.Config)))
 
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
@@ -90,7 +84,7 @@ func (c *Changelog) Generate(writer io.Writer) error {
 	defer compareCancel()
 
 	// TODO: Fail if comparison is behind (example v4.0.0..v3.0.0)?
-	comparison, _, compareError := client.Repositories.CompareCommits(compareContext, c.Config.Owner, c.Config.Repo, start, end)
+	comparison, _, compareError := client.Repositories.CompareCommits(compareContext, c.Config.Owner, c.Config.Repo, c.From, c.To)
 
 	if compareError != nil {
 		return compareError
@@ -120,20 +114,8 @@ func (c *Changelog) Generate(writer io.Writer) error {
 		case e := <-errorChan:
 			return e
 		case ci := <-ciChan:
-			// _, ciErr := writer.Write([]byte(fmt.Sprintf("%#v\n", ci)))
-			// if ciErr != nil {
-			// 	return ciErr
-			// }
-
 			all = append(all, *ci)
 		case <-doneChan:
-			// for _, ci := range all {
-			// 	_, ciErr := writer.Write([]byte(fmt.Sprintf("%#v\n", &ci)))
-			// 	if ciErr != nil {
-			// 		return ciErr
-			// 	}
-			// }
-
 			d := &data{
 				Version: c.To,
 				Items:   all,
