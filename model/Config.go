@@ -25,7 +25,7 @@ import (
 // Config provides a user with more robust options for Changelog configuration
 type Config struct {
 	// Defines whether we resolve commits only or query additional information from pull requests
-	*ResolveType `json:"resolve"`
+	ResolveType *ResolveType `json:"resolve"`
 
 	// The Owner (user or org) of the target repository
 	Owner string `json:"owner"`
