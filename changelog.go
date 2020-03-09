@@ -24,6 +24,8 @@ const defaultTemplate = `
 {{range .Items -}}
 * [{{.CommitHashShort}}]({{.CommitURL_}}) {{.Title}} ([{{.Author}}]({{.AuthorURL}}))
 {{end}}
+
+<em>For more details, see <a href="{{.CompareURL}}">{{.PreviousVersion}}..{{.Version}}</a></em>
 `
 
 type Changelog struct {
@@ -33,8 +35,12 @@ type Changelog struct {
 }
 
 type data struct {
-	Version string
-	Items   []model.ChangeItem
+	Version         string
+	PreviousVersion string
+	Items           []model.ChangeItem
+	DiffURL         string
+	PatchURL        string
+	CompareURL      string
 }
 
 func newContext(c context.Context) (context.Context, context.CancelFunc) {
@@ -96,6 +102,10 @@ func (c *Changelog) Generate(writer io.Writer) error {
 
 	wg := sync.WaitGroup{}
 
+	compareUrl := comparison.GetHTMLURL()
+	diffUrl := comparison.GetDiffURL()
+	patchUrl := comparison.GetPatchURL()
+
 	for _, commit := range (*comparison).Commits {
 		wg.Add(1)
 		go func(commit github.RepositoryCommit) {
@@ -117,8 +127,12 @@ func (c *Changelog) Generate(writer io.Writer) error {
 			all = append(all, *ci)
 		case <-doneChan:
 			d := &data{
-				Version: c.To,
-				Items:   all,
+				PreviousVersion: c.From,
+				Version:         c.To,
+				Items:           all,
+				CompareURL:      compareUrl,
+				DiffURL:         diffUrl,
+				PatchURL:        patchUrl,
 			}
 
 			var tpl = defaultTemplate
