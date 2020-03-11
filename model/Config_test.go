@@ -61,7 +61,7 @@ func ptrStringArray(s ...string) *[]string {
 
 func TestConfig_Load(t *testing.T) {
 	type fields struct {
-		JsonData    string
+		JSONData    string
 		ResolveType *ResolveType
 		Owner       string
 		Repo        string
@@ -75,24 +75,24 @@ func TestConfig_Load(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		{"Loads valid empty json", fields{JsonData: "{}"}, false},
-		{"Loads valid json resolve-only", fields{JsonData: `{"resolve": "commits"}`, ResolveType: ptrResolveType(Commits)}, false},
-		{"Fail on valid json with invalid data type resolve-only", fields{JsonData: `{"resolve": 1.0}`}, true}, // note that 1 would resolve since enum is an int
-		{"Loads valid json owner-only", fields{JsonData: `{"owner": "jimschubert"}`, Owner: "jimschubert"}, false},
-		{"Fail on valid json with invalid data type owner-only", fields{JsonData: `{"owner": []}`}, true},
-		{"Loads valid json repo-only", fields{JsonData: `{"repo": "changelog"}`, Owner: "changelog"}, false},
-		{"Fail on valid json with invalid data type repo-only", fields{JsonData: `{"repo": []}`}, true},
-		{"Loads valid json groupings-only", fields{JsonData: `{"groupings": []}`, Groupings: ptrStringArray()}, false},
-		{"Fail on valid json with invalid data type groupings-only", fields{JsonData: `{"groupings": 4}`}, true},
-		{"Loads valid json exclude-only", fields{JsonData: `{"exclude": []}`, Exclude: ptrStringArray()}, false},
-		{"Fail on valid json with invalid data type exclude-only", fields{JsonData: `{"exclude": 1}`}, true},
-		{"Loads valid json enterprise-only", fields{JsonData: `{"enterprise": "https://ghe.example.com"}`, Enterprise: p("https://ghe.example.com")}, false},
-		{"Fail on valid json with invalid data type enterprise-only", fields{JsonData: `{"enterprise": 0}`}, true},
-		{"Loads valid json template-only", fields{JsonData: `{"template": "/path/to/template"}`, Template: p("/path/to/template")}, false},
-		{"Fail on valid json with invalid data type template-only", fields{JsonData: `{"template": []}`}, true},
+		{"Loads valid empty json", fields{JSONData: "{}"}, false},
+		{"Loads valid json resolve-only", fields{JSONData: `{"resolve": "commits"}`, ResolveType: ptrResolveType(Commits)}, false},
+		{"Fail on valid json with invalid data type resolve-only", fields{JSONData: `{"resolve": 1.0}`}, true}, // note that 1 would resolve since enum is an int
+		{"Loads valid json owner-only", fields{JSONData: `{"owner": "jimschubert"}`, Owner: "jimschubert"}, false},
+		{"Fail on valid json with invalid data type owner-only", fields{JSONData: `{"owner": []}`}, true},
+		{"Loads valid json repo-only", fields{JSONData: `{"repo": "changelog"}`, Owner: "changelog"}, false},
+		{"Fail on valid json with invalid data type repo-only", fields{JSONData: `{"repo": []}`}, true},
+		{"Loads valid json groupings-only", fields{JSONData: `{"groupings": []}`, Groupings: ptrStringArray()}, false},
+		{"Fail on valid json with invalid data type groupings-only", fields{JSONData: `{"groupings": 4}`}, true},
+		{"Loads valid json exclude-only", fields{JSONData: `{"exclude": []}`, Exclude: ptrStringArray()}, false},
+		{"Fail on valid json with invalid data type exclude-only", fields{JSONData: `{"exclude": 1}`}, true},
+		{"Loads valid json enterprise-only", fields{JSONData: `{"enterprise": "https://ghe.example.com"}`, Enterprise: p("https://ghe.example.com")}, false},
+		{"Fail on valid json with invalid data type enterprise-only", fields{JSONData: `{"enterprise": 0}`}, true},
+		{"Loads valid json template-only", fields{JSONData: `{"template": "/path/to/template"}`, Template: p("/path/to/template")}, false},
+		{"Fail on valid json with invalid data type template-only", fields{JSONData: `{"template": []}`}, true},
 		{"Loads valid full json",
 			fields{
-				JsonData:    `{"resolve":"commits","owner":"jimschubert","repo":"ossify","groupings":["feature","bug"],"exclude":["wip","help wanted"],"enterprise":"https://ghe.example.com","template":"/path/to/template"}`,
+				JSONData:    `{"resolve":"commits","owner":"jimschubert","repo":"ossify","groupings":["feature","bug"],"exclude":["wip","help wanted"],"enterprise":"https://ghe.example.com","template":"/path/to/template"}`,
 				ResolveType: ptrResolveType(Commits),
 				Owner:       "jimschubert",
 				Repo:        "ossify",
@@ -103,12 +103,12 @@ func TestConfig_Load(t *testing.T) {
 			}, false},
 		{"Fails on invalid json",
 			fields{
-				JsonData: `{"resolve":"commits":"owner":"jimschubert"}`,
+				JSONData: `{"resolve":"commits":"owner":"jimschubert"}`,
 			}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			jsonLocation, cleanup := createTempConfig(t, tt.fields.JsonData)
+			jsonLocation, cleanup := createTempConfig(t, tt.fields.JSONData)
 			defer cleanup()
 			t.Run(tt.name, func(t *testing.T) {
 				c := &Config{

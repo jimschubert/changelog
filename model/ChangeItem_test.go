@@ -43,7 +43,7 @@ func TestChangeItem_getAuthor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				Author_: tt.fields.Author,
+				AuthorRaw: tt.fields.Author,
 			}
 			if got := ci.Author(); got != tt.want {
 				t.Errorf("Author() = %v, want %v", got, tt.want)
@@ -67,7 +67,7 @@ func TestChangeItem_getAuthorURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				AuthorURL_: tt.fields.AuthorURL,
+				AuthorURLRaw: tt.fields.AuthorURL,
 			}
 			if got := ci.AuthorURL(); got != tt.want {
 				t.Errorf("AuthorURL() = %v, want %v", got, tt.want)
@@ -91,7 +91,7 @@ func TestChangeItem_getCommit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				CommitHash_: tt.fields.Commit,
+				CommitHashRaw: tt.fields.Commit,
 			}
 			if got := ci.CommitHash(); got != tt.want {
 				t.Errorf("CommitHash() = %v, want %v", got, tt.want)
@@ -116,7 +116,7 @@ func TestChangeItem_getDate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				Date_: tt.fields.Date,
+				DateRaw: tt.fields.Date,
 			}
 			if got := ci.Date(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Date() = %v, want %v", got, tt.want)
@@ -143,7 +143,7 @@ func TestChangeItem_getIsPull(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				IsPull_: tt.fields.IsPull,
+				IsPullRaw: tt.fields.IsPull,
 			}
 			if got := ci.IsPull(); got != tt.want {
 				t.Errorf("IsPull() = %v, want %v", got, tt.want)
@@ -171,7 +171,7 @@ func TestChangeItem_getPullID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				PullURL_: tt.fields.PullURL,
+				PullURLRaw: tt.fields.PullURL,
 			}
 			got, err := ci.PullID()
 			if (err != nil) != tt.wantErr {
@@ -201,7 +201,7 @@ func TestChangeItem_getPullURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				PullURL_: tt.fields.PullURL,
+				PullURLRaw: tt.fields.PullURL,
 			}
 			if got := ci.PullURL(); got != tt.want {
 				t.Errorf("PullURL() = %v, want %v", got, tt.want)
@@ -225,7 +225,7 @@ func TestChangeItem_getGroup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				Group_: tt.fields.Group,
+				GroupRaw: tt.fields.Group,
 			}
 			if got := ci.Group(); got != tt.want {
 				t.Errorf("Group() = %v, want %v", got, tt.want)
@@ -249,7 +249,7 @@ func TestChangeItem_getCommitHashShort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				CommitHash_: tt.fields.CommitHash,
+				CommitHashRaw: tt.fields.CommitHash,
 			}
 			if got := ci.CommitHashShort(); got != tt.want {
 				t.Errorf("CommitHashShort() = %v, want %v", got, tt.want)
@@ -260,20 +260,20 @@ func TestChangeItem_getCommitHashShort(t *testing.T) {
 
 func TestChangeItem_CommitURL(t *testing.T) {
 	type fields struct {
-		CommitURL_     *string
+		CommitURLRaw     *string
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		want   string
 	}{
-		{ "empty CommitURL", fields{CommitURL_: nil}, ""},
-		{ "populated CommitURL", fields{CommitURL_: p("https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd")}, "https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd"},
+		{ "empty CommitURL", fields{CommitURLRaw: nil}, ""},
+		{ "populated CommitURL", fields{CommitURLRaw: p("https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd")}, "https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				CommitURL_:     tt.fields.CommitURL_,
+				CommitURLRaw: tt.fields.CommitURLRaw,
 			}
 			if got := ci.CommitURL(); got != tt.want {
 				t.Errorf("CommitURL() = %v, want %v", got, tt.want)
@@ -284,18 +284,18 @@ func TestChangeItem_CommitURL(t *testing.T) {
 
 func TestChangeItem_Title(t *testing.T) {
 	type fields struct {
-		CommitMessage_ *string
+		CommitMessageRaw *string
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		want   string
 	}{
-		{"empty Title from nil CommitMessage", fields{CommitMessage_: nil}, ""},
-		{"empty Title from empty CommitMessage", fields{CommitMessage_: p("")}, ""},
-		{"empty Title from single-line CommitMessage", fields{CommitMessage_: p("Initial Commit")}, "Initial Commit"},
+		{"empty Title from nil CommitMessage", fields{CommitMessageRaw: nil}, ""},
+		{"empty Title from empty CommitMessage", fields{CommitMessageRaw: p("")}, ""},
+		{"empty Title from single-line CommitMessage", fields{CommitMessageRaw: p("Initial Commit")}, "Initial Commit"},
 		{"empty Title from multi-line CommitMessage",
-			fields{CommitMessage_: p(
+			fields{CommitMessageRaw: p(
 				`Initial Commit
 					
 					This is the initial commit
@@ -305,7 +305,7 @@ func TestChangeItem_Title(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				CommitMessage_: tt.fields.CommitMessage_,
+				CommitMessageRaw: tt.fields.CommitMessageRaw,
 			}
 			if got := ci.Title(); got != tt.want {
 				t.Errorf("Title() = %v, want %v", got, tt.want)
@@ -316,15 +316,15 @@ func TestChangeItem_Title(t *testing.T) {
 
 func TestChangeItem_GoString(t *testing.T) {
 	type fields struct {
-		Author_        *string
-		AuthorURL_     *string
-		CommitMessage_ *string
-		Date_          *time.Time
-		IsPull_        *bool
-		PullURL_       *string
-		CommitHash_    *string
-		CommitURL_     *string
-		Group_         *string
+		AuthorRaw        *string
+		AuthorURLRaw     *string
+		CommitMessageRaw *string
+		DateRaw          *time.Time
+		IsPullRaw        *bool
+		PullURLRaw       *string
+		CommitHashRaw    *string
+		CommitURLRaw     *string
+		GroupRaw         *string
 	}
 
 	tests := []struct {
@@ -332,20 +332,20 @@ func TestChangeItem_GoString(t *testing.T) {
 		fields fields
 		want   string
 	}{
-		{"GoString should not error when fields are nil", fields{}, "ChangeItem: { Commit: , Author_: , Time: 0001-01-01 00:00:00 +0000 UTC, CommitMessage_:  }"},
+		{"GoString should not error when fields are nil", fields{}, "ChangeItem: { Commit: , Author: , Time: 0001-01-01 00:00:00 +0000 UTC, CommitMessage:  }"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := &ChangeItem{
-				Author_:        tt.fields.Author_,
-				AuthorURL_:     tt.fields.AuthorURL_,
-				CommitMessage_: tt.fields.CommitMessage_,
-				Date_:          tt.fields.Date_,
-				IsPull_:        tt.fields.IsPull_,
-				PullURL_:       tt.fields.PullURL_,
-				CommitHash_:    tt.fields.CommitHash_,
-				CommitURL_:     tt.fields.CommitURL_,
-				Group_:         tt.fields.Group_,
+				AuthorRaw:        tt.fields.AuthorRaw,
+				AuthorURLRaw:     tt.fields.AuthorURLRaw,
+				CommitMessageRaw: tt.fields.CommitMessageRaw,
+				DateRaw:          tt.fields.DateRaw,
+				IsPullRaw:        tt.fields.IsPullRaw,
+				PullURLRaw:       tt.fields.PullURLRaw,
+				CommitHashRaw:    tt.fields.CommitHashRaw,
+				CommitURLRaw:     tt.fields.CommitURLRaw,
+				GroupRaw:         tt.fields.GroupRaw,
 			}
 			if got := ci.GoString(); got != tt.want {
 				t.Errorf("GoString() = %v, want %v", got, tt.want)

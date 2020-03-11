@@ -24,98 +24,107 @@ import (
 // ChangeItem stores properties exposed to users for Changelog creation
 type ChangeItem struct {
 	// The author of a commit
-	Author_ *string `json:"author"`
+	AuthorRaw *string `json:"author"`
 
 	// URL to author's GitHub profile
-	AuthorURL_ *string `json:"author_url"`
+	AuthorURLRaw *string `json:"author_url"`
 
 	// The commit title
-	CommitMessage_ *string `json:"commit_message"`
+	CommitMessageRaw *string `json:"commit_message"`
 
 	// The commit date of the contribution (i.e. merge date)
-	Date_ *time.Time `json:"date"`
+	DateRaw *time.Time `json:"date"`
 
-	// IsPull_ determines if the commit was sourced from a pull request or directly committed to the branch
-	IsPull_ *bool `json:"is_pull"`
+	// IsPullRaw determines if the commit was sourced from a pull request or directly committed to the branch
+	IsPullRaw *bool `json:"is_pull"`
 
-	// When IsPull_=true, this will point to the source of the pull request
-	PullURL_ *string `json:"pull_url"`
+	// When IsPullRaw=true, this will point to the source of the pull request
+	PullURLRaw *string `json:"pull_url"`
 
 	// The commit's full SHA1 hash
-	CommitHash_ *string `json:"commit"`
+	CommitHashRaw *string `json:"commit"`
 
 	// The URL to the commit
-	CommitURL_ *string `json:"commit_url"`
+	CommitURLRaw *string `json:"commit_url"`
 
 	// An optional group identifier
-	Group_ *string `json:"group"`
+	GroupRaw *string `json:"group"`
 }
 
+// Author or empty string
 func (ci *ChangeItem) Author() string {
-	if ci.Author_ != nil {
-		return *ci.Author_
+	if ci.AuthorRaw != nil {
+		return *ci.AuthorRaw
 	}
 
 	return ""
 }
 
+// AuthorURL or empty string
 func (ci *ChangeItem) AuthorURL() string {
-	if ci.AuthorURL_ != nil {
-		return *ci.AuthorURL_
+	if ci.AuthorURLRaw != nil {
+		return *ci.AuthorURLRaw
 	}
 
 	return ""
 }
 
+// Title is the first line of a commit message, otherwise empty string
 func (ci *ChangeItem) Title() string {
-	if ci.CommitMessage_ != nil {
-		idx := strings.Index(*ci.CommitMessage_, "\n")
+	if ci.CommitMessageRaw != nil {
+		idx := strings.Index(*ci.CommitMessageRaw, "\n")
 		if idx > 0 {
-			return (*ci.CommitMessage_)[0:idx]
+			return (*ci.CommitMessageRaw)[0:idx]
 		}
 
-		return *ci.CommitMessage_
+		return *ci.CommitMessageRaw
 	}
 
 	return ""
 }
 
+// Date or now
 func (ci *ChangeItem) Date() time.Time {
-	if ci.Date_ != nil {
-		return *ci.Date_
+	if ci.DateRaw != nil {
+		return *ci.DateRaw
 	}
 
 	return time.Time{}
 }
 
+// IsPull or false
 func (ci *ChangeItem) IsPull() bool {
-	if ci.IsPull_ != nil {
-		return *ci.IsPull_
+	if ci.IsPullRaw != nil {
+		return *ci.IsPullRaw
 	}
 	return false
 }
 
+// PullURL or empty string
 func (ci *ChangeItem) PullURL() string {
-	if ci.PullURL_ != nil {
-		return *ci.PullURL_
+	if ci.PullURLRaw != nil {
+		return *ci.PullURLRaw
 	}
 	return ""
 }
 
+// CommitHash or empty string
 func (ci *ChangeItem) CommitHash() string {
-	if ci.CommitHash_ != nil {
-		return *ci.CommitHash_
+	if ci.CommitHashRaw != nil {
+		return *ci.CommitHashRaw
 	}
 	return ""
 }
 
+// CommitURL or empty string
 func (ci *ChangeItem) CommitURL() string {
-	if ci.CommitURL_ != nil {
-		return *ci.CommitURL_
+	if ci.CommitURLRaw != nil {
+		return *ci.CommitURLRaw
 	}
 	return ""
 }
 
+// CommitHashShort is first 10 characters of CommitHash, or CommitHash if it's already short
 func (ci *ChangeItem) CommitHashShort() string {
 	hash := ci.CommitHash()
 	if len(hash) > 10 {
@@ -124,6 +133,7 @@ func (ci *ChangeItem) CommitHashShort() string {
 	return hash
 }
 
+// PullID is the numerical ID of a pull request, extracted from PullURL
 func (ci *ChangeItem) PullID() (string, error) {
 	url := ci.PullURL()
 	if len(url) > 0 {
@@ -134,24 +144,26 @@ func (ci *ChangeItem) PullID() (string, error) {
 	return "", fmt.Errorf("no pull url available")
 }
 
+// Group is the targeted group for a commit, or empty string
 func (ci *ChangeItem) Group() string {
-	if ci.Group_ != nil {
-		return *ci.Group_
+	if ci.GroupRaw != nil {
+		return *ci.GroupRaw
 	}
 	return ""
 }
 
+// GoString displays debuggable format of ChangeItem
 func (ci *ChangeItem) GoString() string {
 	var buffer bytes.Buffer
 
 	buffer.WriteString("ChangeItem: {")
 	buffer.WriteString(" Commit: ")
 	buffer.WriteString(ci.CommitHashShort())
-	buffer.WriteString(", Author_: ")
+	buffer.WriteString(", Author: ")
 	buffer.WriteString(ci.Author())
 	buffer.WriteString(", Time: ")
 	buffer.WriteString(fmt.Sprintf("%v", ci.Date()))
-	buffer.WriteString(", CommitMessage_: ")
+	buffer.WriteString(", CommitMessage: ")
 	buffer.WriteString(ci.Title())
 	buffer.WriteString(" }")
 

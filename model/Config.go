@@ -50,6 +50,7 @@ type Config struct {
 	Template *string `json:"template"`
 }
 
+// Load a Config from path
 func (c *Config) Load(path string) error {
 	b, err := ioutil.ReadFile(path)
 
@@ -64,6 +65,7 @@ func (c *Config) Load(path string) error {
 	return json.Unmarshal(b, c)
 }
 
+// String displays a human readable representation of a Config
 func (c *Config) String() string {
 	var buffer bytes.Buffer
 
@@ -85,6 +87,7 @@ func (c *Config) String() string {
 	return fmt.Sprintf(buffer.String())
 }
 
+// LoadOrNewConfig will attempt to load path, otherwise returns a newly constructed config.
 func LoadOrNewConfig(path *string, owner string, repo string) *Config {
 	defaultResolveType := Commits
 	config := Config{}

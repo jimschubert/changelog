@@ -16,13 +16,18 @@ package model
 
 import "fmt"
 
+// ResolveType is a type alias representing the enumeration of options
+// which configure how commits are processed (if commit only or if we lookup any available pull request info)
 type ResolveType uint8
 
 const (
+	// Commits only
 	Commits      ResolveType = 1 << iota
+	// PullRequests requests that we pull PR information if available
 	PullRequests ResolveType = 1 << iota
 )
 
+// MarshalJSON converts ResolveType into a string representation sufficient for JSON
 func (r *ResolveType) MarshalJSON() ([]byte, error) {
 	if r == nil {
 		return []byte(""), nil
@@ -39,6 +44,7 @@ func (r *ResolveType) MarshalJSON() ([]byte, error) {
 	}
 }
 
+// UnmarshalJSON converts a JSON formatted character array into ResolveType
 func (r *ResolveType) UnmarshalJSON(b []byte) error {
 	if len(b) == 1 {
 		*r = ResolveType(b[0])
@@ -57,6 +63,7 @@ func (r *ResolveType) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// String displays a human readable representation of the ResolveType values
 func (r ResolveType) String() string {
 	switch r {
 	case PullRequests:

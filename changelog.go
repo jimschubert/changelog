@@ -16,18 +16,19 @@ import (
 	"changelog/model"
 )
 
-const EmptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
-const DefaultEnd = "HEAD"
+const emptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+const defaultEnd = "HEAD"
 const defaultTemplate = `
 ## {{.Version}}
 
 {{range .Items -}}
-* [{{.CommitHashShort}}]({{.CommitURL_}}) {{.Title}} ([{{.Author}}]({{.AuthorURL}}))
+* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ([{{.Author}}]({{.AuthorURL}}))
 {{end}}
 
 <em>For more details, see <a href="{{.CompareURL}}">{{.PreviousVersion}}..{{.Version}}</a></em>
 `
 
+// Changelog holds the information required to define the bounds for the changelog
 type Changelog struct {
 	*model.Config
 	From string
@@ -48,6 +49,7 @@ func newContext(c context.Context) (context.Context, context.CancelFunc) {
 	return timeout, cancel
 }
 
+// Generate will format a changelog, writing to the supplied writer
 func (c *Changelog) Generate(writer io.Writer) error {
 	ctx := context.Background()
 	token, found := os.LookupEnv("GITHUB_TOKEN")
@@ -58,11 +60,11 @@ func (c *Changelog) Generate(writer io.Writer) error {
 
 	start := c.From
 	if len(start) == 0 {
-		start = EmptyTree
+		start = emptyTree
 	}
 	end := c.To
 	if len(end) == 0 {
-		end = DefaultEnd
+		end = defaultEnd
 	}
 
 	c.From = start
@@ -102,9 +104,9 @@ func (c *Changelog) Generate(writer io.Writer) error {
 
 	wg := sync.WaitGroup{}
 
-	compareUrl := comparison.GetHTMLURL()
-	diffUrl := comparison.GetDiffURL()
-	patchUrl := comparison.GetPatchURL()
+	compareURL := comparison.GetHTMLURL()
+	diffURL := comparison.GetDiffURL()
+	patchURL := comparison.GetPatchURL()
 
 	for _, commit := range (*comparison).Commits {
 		wg.Add(1)
@@ -130,9 +132,9 @@ func (c *Changelog) Generate(writer io.Writer) error {
 				PreviousVersion: c.From,
 				Version:         c.To,
 				Items:           all,
-				CompareURL:      compareUrl,
-				DiffURL:         diffUrl,
-				PatchURL:        patchUrl,
+				CompareURL:      compareURL,
+				DiffURL:         diffURL,
+				PatchURL:        patchURL,
 			}
 
 			var tpl = defaultTemplate
@@ -169,15 +171,15 @@ func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan
 	// TODO: Pull URL/Boolean
 	// TODO: Excludes
 	ci := &model.ChangeItem{
-		Author_:        commit.Author.Login,
-		AuthorURL_:     commit.Author.URL,
-		CommitMessage_: commit.Commit.Message,
-		Date_:          t,
-		IsPull_:        nil,
-		PullURL_:       nil,
-		CommitHash_:    commit.SHA,
-		CommitURL_:     commit.HTMLURL,
-		Group_:         nil,
+		AuthorRaw:        commit.Author.Login,
+		AuthorURLRaw:     commit.Author.URL,
+		CommitMessageRaw: commit.Commit.Message,
+		DateRaw:          t,
+		IsPullRaw:        nil,
+		PullURLRaw:       nil,
+		CommitHashRaw:    commit.SHA,
+		CommitURLRaw:     commit.HTMLURL,
+		GroupRaw:         nil,
 	}
 
 	ch <- ci
