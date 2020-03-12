@@ -36,8 +36,22 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v1
+
+    - name: Docker Login Github
+      if: github.ref == 'refs/heads/master'
+      run: >-
+        echo "${{ secrets.GITHUB_TOKEN }}"
+        | docker login -u ${GITHUB_ACTOR} --password-stdin docker.pkg.github.com
+
+    - name: Build
+      if: github.ref == 'refs/heads/master'
+      run: docker build -t docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REPOSITORY#*/}:latest .
+
     - name: Publish Latest to GitHub Package Registry
-      uses: mattdavis0351/actions/docker-gpr@v1
-      with:
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        image-name: ${GITHUB_REPOSITORY#*/}
+      if: github.ref == 'refs/heads/master'
+      run: docker push docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REPOSITORY#*/}:latest
+
+    - name: Clear
+      if: always() && github.ref == 'refs/heads/master'
+      run: |
+        rm -f ${HOME}/.docker/config.json
