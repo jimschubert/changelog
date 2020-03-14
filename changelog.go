@@ -167,6 +167,7 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.Co
 		PatchURL:        patchURL,
 	}
 
+	// TODO: Output in groups if available
 	var tpl = defaultTemplate
 	if c.Config.Template != nil {
 		b, templateErr := ioutil.ReadFile(*c.Config.Template)
@@ -188,26 +189,51 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.Co
 
 func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan *model.ChangeItem, wg *sync.WaitGroup) {
 	defer wg.Done()
-
-	var t *time.Time
-	if commit.GetCommit() != nil && (*commit.GetCommit()).GetAuthor() != nil && (*(*commit.GetCommit()).GetAuthor()).Date != nil {
-		t = (*(*commit.GetCommit()).GetAuthor()).Date
+	var isMergeCommit = false
+	if commit.GetCommit() != nil && len(commit.GetCommit().Parents) > 1 {
+		isMergeCommit = true
 	}
 
-	// TODO: Max count?
-	// TODO: Groupings
-	// TODO: Excludes
-	ci := &model.ChangeItem{
-		AuthorRaw:        commit.Author.Login,
-		AuthorURLRaw:     commit.Author.HTMLURL,
-		CommitMessageRaw: commit.Commit.Message,
-		DateRaw:          t,
-		CommitHashRaw:    commit.SHA,
-		CommitURLRaw:     commit.HTMLURL,
-	}
-	c.applyPullPropertiesChangeItem(ci)
+	if !isMergeCommit {
+		var t *time.Time
+		if commit.GetCommit() != nil && (*commit.GetCommit()).GetAuthor() != nil && (*(*commit.GetCommit()).GetAuthor()).Date != nil {
+			t = (*(*commit.GetCommit()).GetAuthor()).Date
+		}
 
-	ch <- ci
+		grouping := c.findGroup(commit)
+
+		// TODO: Max count?
+		// TODO: Excludes
+		ci := &model.ChangeItem{
+			AuthorRaw:        commit.Author.Login,
+			AuthorURLRaw:     commit.Author.HTMLURL,
+			CommitMessageRaw: commit.Commit.Message,
+			DateRaw:          t,
+			CommitHashRaw:    commit.SHA,
+			CommitURLRaw:     commit.HTMLURL,
+			GroupRaw:         grouping,
+		}
+		c.applyPullPropertiesChangeItem(ci)
+
+		ch <- ci
+	}
+}
+
+func (c *Changelog) findGroup(commit *github.RepositoryCommit) *string {
+	var grouping *string
+	if c.Groupings != nil {
+		title := strings.Split(commit.GetCommit().GetMessage(), "\n")[0]
+		for _, g := range *c.Groupings {
+			for _, pattern := range g.Patterns {
+				re := regexp.MustCompile(pattern)
+				if re.Match([]byte(title)) {
+					grouping = &g.Name
+					return grouping
+				}
+			}
+		}
+	}
+	return grouping
 }
 
 type CommitDescendingSorter []model.ChangeItem

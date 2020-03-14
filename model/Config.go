@@ -20,7 +20,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 )
+
+type Grouping struct {
+	Name string `json:"name"`
+	Patterns []string `json:"patterns"`
+}
 
 // Config provides a user with more robust options for Changelog configuration
 type Config struct {
@@ -35,7 +41,7 @@ type Config struct {
 
 	// A set of square-bracket wrapped texts and/or labels (if resolving pull requests) we will define groupings for
 	// Commits are associated with the first matching group.
-	Groupings *[]string `json:"groupings"`
+	Groupings *[]Grouping `json:"groupings"`
 
 	// As set of square-bracket wrapped texts and/or labels to be excluded from output.
 	// If the commit message or pr labels reference any text in this Exclude set, that commit
@@ -98,10 +104,22 @@ func (c *Config) String() string {
 func LoadOrNewConfig(path *string, owner string, repo string) *Config {
 	defaultResolveType := Commits
 	defaultSortDirection := Descending
-	config := Config{SortDirection: &defaultSortDirection, ResolveType: &defaultResolveType}
+	config := Config{
+		SortDirection: &defaultSortDirection,
+		ResolveType: &defaultResolveType,
+	}
 	if path != nil {
 		err := config.Load(*path)
 		if err == nil {
+			if config.Owner == "" || strings.Compare(owner, config.Owner) != 0 {
+				config.Owner = owner
+			}
+			if config.Repo == "" || strings.Compare(repo, config.Repo) != 0 {
+				config.Repo = repo
+			}
+			if config.ResolveType == nil {
+				config.ResolveType = &defaultResolveType
+			}
 			return &config
 		}
 	}

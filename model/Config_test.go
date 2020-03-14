@@ -55,13 +55,21 @@ func ptrStringArray(s ...string) *[]string {
 	return &arr
 }
 
+func groupings(g ...Grouping) *[]Grouping {
+	arr := make([]Grouping, 0)
+	if len(g) > 0 {
+		arr = append(arr, g...)
+	}
+	return &arr
+}
+
 func TestConfig_Load(t *testing.T) {
 	type fields struct {
 		JSONData      string
 		ResolveType   *ResolveType
 		Owner         string
 		Repo          string
-		Groupings     *[]string
+		Groupings     *[]Grouping
 		Exclude       *[]string
 		Enterprise    *string
 		Template      *string
@@ -79,7 +87,7 @@ func TestConfig_Load(t *testing.T) {
 		{"Fail on valid json with invalid data type owner-only", fields{JSONData: `{"owner": []}`}, true},
 		{"Loads valid json repo-only", fields{JSONData: `{"repo": "changelog"}`, Owner: "changelog"}, false},
 		{"Fail on valid json with invalid data type repo-only", fields{JSONData: `{"repo": []}`}, true},
-		{"Loads valid json groupings-only", fields{JSONData: `{"groupings": []}`, Groupings: ptrStringArray()}, false},
+		{"Loads valid json groupings-only", fields{JSONData: `{"groupings": []}`, Groupings: groupings(Grouping { Name: "g", Patterns: make([]string, 0)})}, false},
 		{"Fail on valid json with invalid data type groupings-only", fields{JSONData: `{"groupings": 4}`}, true},
 		{"Loads valid json exclude-only", fields{JSONData: `{"exclude": []}`, Exclude: ptrStringArray()}, false},
 		{"Fail on valid json with invalid data type exclude-only", fields{JSONData: `{"exclude": 1}`}, true},
@@ -91,11 +99,11 @@ func TestConfig_Load(t *testing.T) {
 		{"Fail on valid json with invalid data type template-only", fields{JSONData: `{"template": []}`}, true},
 		{"Loads valid full json",
 			fields{
-				JSONData:      `{"resolve":"commits","owner":"jimschubert","repo":"ossify","groupings":["feature","bug"],"exclude":["wip","help wanted"],"enterprise":"https://ghe.example.com","template":"/path/to/template","sort":"asc"}`,
+				JSONData:      `{"resolve":"commits","owner":"jimschubert","repo":"ossify","groupings":[{"name":"feature","patterns":[]},{"name":"bug","patterns":[]}],"exclude":["wip","help wanted"],"enterprise":"https://ghe.example.com","template":"/path/to/template","sort":"asc"}`,
 				ResolveType:   Commits.Ptr(),
 				Owner:         "jimschubert",
 				Repo:          "ossify",
-				Groupings:     ptrStringArray("feature", "bug"),
+				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{} }),
 				Exclude:       ptrStringArray("wip", "help wanted"),
 				Enterprise:    p("https://ghe.example.com"),
 				Template:      p("/path/to/template"),
@@ -133,7 +141,7 @@ func TestConfig_String(t *testing.T) {
 		ResolveType   *ResolveType
 		Owner         string
 		Repo          string
-		Groupings     *[]string
+		Groupings     *[]Grouping
 		Exclude       *[]string
 		Enterprise    *string
 		Template      *string
@@ -149,12 +157,12 @@ func TestConfig_String(t *testing.T) {
 				ResolveType:   Commits.Ptr(),
 				Owner:         "jimschubert",
 				Repo:          "ossify",
-				Groupings:     ptrStringArray("feature", "bug"),
+				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{} }),
 				Exclude:       ptrStringArray("wip", "help wanted"),
 				Enterprise:    p("https://ghe.example.com"),
 				Template:      p("/path/to/template"),
 				SortDirection: Ascending.Ptr(),
-			}, `Config: { ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[feature bug] Exclude: &[wip help wanted] Enterprise: https://ghe.example.com Template: /path/to/template Sort: asc }`},
+			}, `Config: { ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[{feature []} {bug []}] Exclude: &[wip help wanted] Enterprise: https://ghe.example.com Template: /path/to/template Sort: asc }`},
 
 		{"outputs string for nil properties",
 			fields{}, `Config: { ResolveType: <nil> Owner:  Repo:  Groupings: <nil> Exclude: <nil> Enterprise:  Template:  Sort:  }`},
