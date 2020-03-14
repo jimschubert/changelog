@@ -48,6 +48,9 @@ type Config struct {
 	// Custom template following Go text/template syntax
 	// For more details, see https://golang.org/pkg/text/template/
 	Template *string `json:"template"`
+
+	// SortDirection defines the order of commits within the changelog
+	SortDirection *SortDirection `json:"sort"`
 }
 
 // Load a Config from path
@@ -83,14 +86,24 @@ func (c *Config) String() string {
 	if c.Template != nil {
 		buffer.WriteString(*c.Template)
 	}
+	buffer.WriteString(" Sort: ")
+	if c.SortDirection != nil {
+		buffer.WriteString(c.SortDirection.String())
+	}
 	buffer.WriteString(" }")
 	return fmt.Sprintf(buffer.String())
+}
+
+func (c *Config) withDefaults() {
+	commits := Commits
+	c.ResolveType = &commits
 }
 
 // LoadOrNewConfig will attempt to load path, otherwise returns a newly constructed config.
 func LoadOrNewConfig(path *string, owner string, repo string) *Config {
 	defaultResolveType := Commits
-	config := Config{}
+	defaultSortDirection := Descending
+	config := Config{SortDirection: &defaultSortDirection, ResolveType: &defaultResolveType}
 	if path != nil {
 		err := config.Load(*path)
 		if err == nil {

@@ -152,11 +152,11 @@ func TestConfig_String(t *testing.T) {
 				Exclude:     ptrStringArray("wip", "help wanted"),
 				Enterprise:  p("https://ghe.example.com"),
 				Template:    p("/path/to/template"),
-			}, `Config: { ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[feature bug] Exclude: &[wip help wanted] Enterprise: https://ghe.example.com Template: /path/to/template }`},
+			}, `Config: { ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[feature bug] Exclude: &[wip help wanted] Enterprise: https://ghe.example.com Template: /path/to/template Sort:  }`},
 
 		{"outputs string for nil properties",
 			fields{
-			}, `Config: { ResolveType: <nil> Owner:  Repo:  Groupings: <nil> Exclude: <nil> Enterprise:  Template:  }`},
+			}, `Config: { ResolveType: <nil> Owner:  Repo:  Groupings: <nil> Exclude: <nil> Enterprise:  Template:  Sort:  }`},
 	}
 	// Config: {ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[feature bug] Exclude: &[wip help wanted] Enterprise: 0xc00003c5b0 Template: 0xc00003c5c0}
 	for _, tt := range tests {

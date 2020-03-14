@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"sort"
 	"sync"
 	"text/template"
 	"time"
@@ -58,32 +59,23 @@ func (c *Changelog) Generate(writer io.Writer) error {
 		os.Exit(1)
 	}
 
-	start := c.From
-	if len(start) == 0 {
-		start = emptyTree
+	if len(c.From) == 0 {
+		c.From = emptyTree
 	}
-	end := c.To
-	if len(end) == 0 {
-		end = defaultEnd
+	if len(c.To) == 0 {
+		c.To = defaultEnd
 	}
 
-	c.From = start
-	c.To = end
-
-	// _, _ = writer.Write([]byte(fmt.Sprintf("Changelog %s..%s\n%s\n", start, end, c.Config)))
-
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	tc := oauth2.NewClient(ctx, ts)
 
 	var client *github.Client
 	if c.Config.Enterprise != nil && len(*c.Config.Enterprise) > 0 {
-		c, e := github.NewEnterpriseClient(*c.Config.Enterprise, *c.Config.Enterprise, tc)
+		cl, e := github.NewEnterpriseClient(*c.Config.Enterprise, *c.Config.Enterprise, tc)
 		if e != nil {
 			return e
 		}
-		client = c
+		client = cl
 	} else {
 		client = github.NewClient(tc)
 	}
@@ -104,10 +96,6 @@ func (c *Changelog) Generate(writer io.Writer) error {
 
 	wg := sync.WaitGroup{}
 
-	compareURL := comparison.GetHTMLURL()
-	diffURL := comparison.GetDiffURL()
-	patchURL := comparison.GetPatchURL()
-
 	for _, commit := range (*comparison).Commits {
 		wg.Add(1)
 		go func(commit github.RepositoryCommit) {
@@ -115,10 +103,7 @@ func (c *Changelog) Generate(writer io.Writer) error {
 		}(commit)
 	}
 
-	go func() {
-		wg.Wait()
-		doneChan <- struct{}{}
-	}()
+	go wait(doneChan, &wg)
 
 	all := make([]model.ChangeItem, 0)
 	for {
@@ -128,35 +113,54 @@ func (c *Changelog) Generate(writer io.Writer) error {
 		case ci := <-ciChan:
 			all = append(all, *ci)
 		case <-doneChan:
-			d := &data{
-				PreviousVersion: c.From,
-				Version:         c.To,
-				Items:           all,
-				CompareURL:      compareURL,
-				DiffURL:         diffURL,
-				PatchURL:        patchURL,
-			}
-
-			var tpl = defaultTemplate
-			if c.Config.Template != nil {
-				b, templateErr := ioutil.ReadFile(*c.Config.Template)
-				if templateErr != nil {
-					_, _ = fmt.Fprintln(os.Stderr, "Unable to load template. Using default.")
-				} else {
-					tpl = string(b)
-				}
-			}
-
-			tmpl, err := template.New("test").Parse(tpl)
-			if err != nil {
-				return err
-			}
-
-			_ = tmpl.Execute(writer, d)
-
-			return nil
+			return c.writeChangelog(all, comparison, writer)
 		}
 	}
+}
+
+func wait(ch chan struct{}, wg *sync.WaitGroup) {
+	wg.Wait()
+	ch <- struct{}{}
+}
+
+func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.CommitsComparison, writer io.Writer) error {
+	compareURL := comparison.GetHTMLURL()
+	diffURL := comparison.GetDiffURL()
+	patchURL := comparison.GetPatchURL()
+
+	switch *c.Config.SortDirection {
+	case model.Ascending:
+		sort.Sort(CommitAscendingSorter(all))
+	case model.Descending:
+		sort.Sort(CommitDescendingSorter(all))
+	}
+
+	d := &data{
+		PreviousVersion: c.From,
+		Version:         c.To,
+		Items:           all,
+		CompareURL:      compareURL,
+		DiffURL:         diffURL,
+		PatchURL:        patchURL,
+	}
+
+	var tpl = defaultTemplate
+	if c.Config.Template != nil {
+		b, templateErr := ioutil.ReadFile(*c.Config.Template)
+		if templateErr != nil {
+			_, _ = fmt.Fprintln(os.Stderr, "Unable to load template. Using default.")
+		} else {
+			tpl = string(b)
+		}
+	}
+
+	tmpl, err := template.New("test").Parse(tpl)
+	if err != nil {
+		return err
+	}
+
+	_ = tmpl.Execute(writer, d)
+	return nil
 }
 
 func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan *model.ChangeItem, wg *sync.WaitGroup) {
@@ -184,3 +188,15 @@ func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan
 
 	ch <- ci
 }
+
+type CommitDescendingSorter []model.ChangeItem
+
+func (a CommitDescendingSorter) Len() int           { return len(a) }
+func (a CommitDescendingSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a CommitDescendingSorter) Less(i, j int) bool { return a[i].Date().Unix() > a[j].Date().Unix() }
+
+type CommitAscendingSorter []model.ChangeItem
+
+func (a CommitAscendingSorter) Len() int           { return len(a) }
+func (a CommitAscendingSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a CommitAscendingSorter) Less(i, j int) bool { return a[i].Date().Unix() < a[j].Date().Unix() }
