@@ -88,15 +88,10 @@ func (c *Config) String() string {
 	}
 	buffer.WriteString(" Sort: ")
 	if c.SortDirection != nil {
-		buffer.WriteString(c.SortDirection.String())
+		buffer.WriteString((*c.SortDirection).String())
 	}
 	buffer.WriteString(" }")
 	return fmt.Sprintf(buffer.String())
-}
-
-func (c *Config) withDefaults() {
-	commits := Commits
-	c.ResolveType = &commits
 }
 
 // LoadOrNewConfig will attempt to load path, otherwise returns a newly constructed config.

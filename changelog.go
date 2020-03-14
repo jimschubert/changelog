@@ -1,12 +1,15 @@
 package changelog
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"text/template"
 	"time"
@@ -23,7 +26,7 @@ const defaultTemplate = `
 ## {{.Version}}
 
 {{range .Items -}}
-* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ([{{.Author}}]({{.AuthorURL}}))
+* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ({{if .IsPull}}[contributed]({{.PullURL}}) by {{end}}[{{.Author}}]({{.AuthorURL}}))
 {{end}}
 
 <em>For more details, see <a href="{{.CompareURL}}">{{.PreviousVersion}}..{{.Version}}</a></em>
@@ -123,6 +126,26 @@ func wait(ch chan struct{}, wg *sync.WaitGroup) {
 	ch <- struct{}{}
 }
 
+func (c *Changelog) applyPullPropertiesChangeItem(ci *model.ChangeItem) {
+	re := regexp.MustCompile(`.+?\(#(\d+)\)$`)
+	title := ci.Title()
+	match := re.FindStringSubmatch(title)
+	if match != nil && len(match) > 0 {
+		isPull := true
+		ci.IsPullRaw = &isPull
+		baseUrl := ci.CommitURL()
+		idx := strings.LastIndex(baseUrl, "commit")
+		if idx > 0 {
+			var buffer bytes.Buffer
+			buffer.WriteString(baseUrl[0:idx])
+			buffer.WriteString("pull/")
+			buffer.WriteString(match[1])
+			result := buffer.String()
+			ci.PullURLRaw = &result
+		}
+	}
+}
+
 func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.CommitsComparison, writer io.Writer) error {
 	compareURL := comparison.GetHTMLURL()
 	diffURL := comparison.GetDiffURL()
@@ -171,20 +194,18 @@ func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan
 		t = (*(*commit.GetCommit()).GetAuthor()).Date
 	}
 
+	// TODO: Max count?
 	// TODO: Groupings
-	// TODO: Pull URL/Boolean
 	// TODO: Excludes
 	ci := &model.ChangeItem{
 		AuthorRaw:        commit.Author.Login,
-		AuthorURLRaw:     commit.Author.URL,
+		AuthorURLRaw:     commit.Author.HTMLURL,
 		CommitMessageRaw: commit.Commit.Message,
 		DateRaw:          t,
-		IsPullRaw:        nil,
-		PullURLRaw:       nil,
 		CommitHashRaw:    commit.SHA,
 		CommitURLRaw:     commit.HTMLURL,
-		GroupRaw:         nil,
 	}
+	c.applyPullPropertiesChangeItem(ci)
 
 	ch <- ci
 }

@@ -30,7 +30,7 @@ func pTime(t time.Time) *time.Time {
 
 func TestChangeItem_getAuthor(t *testing.T) {
 	type fields struct {
-		Author    *string
+		Author *string
 	}
 	tests := []struct {
 		name   string
@@ -78,7 +78,7 @@ func TestChangeItem_getAuthorURL(t *testing.T) {
 
 func TestChangeItem_getCommit(t *testing.T) {
 	type fields struct {
-		Commit    *string
+		Commit *string
 	}
 	tests := []struct {
 		name   string
@@ -103,7 +103,7 @@ func TestChangeItem_getCommit(t *testing.T) {
 func TestChangeItem_getDate(t *testing.T) {
 	d := time.Date(2020, time.February, 20, 10, 10, 2, 20, &time.Location{})
 	type fields struct {
-		Date      *time.Time
+		Date *time.Time
 	}
 	tests := []struct {
 		name   string
@@ -129,7 +129,7 @@ func TestChangeItem_getIsPull(t *testing.T) {
 	f := false
 	tt := true
 	type fields struct {
-		IsPull    *bool
+		IsPull *bool
 	}
 	tests := []struct {
 		name   string
@@ -156,7 +156,7 @@ func TestChangeItem_getPullID(t *testing.T) {
 	pull := "https://github.com/OpenAPITools/openapi-generator/pull/5472"
 	empty := ""
 	type fields struct {
-		PullURL   *string
+		PullURL *string
 	}
 	tests := []struct {
 		name    string
@@ -188,7 +188,7 @@ func TestChangeItem_getPullID(t *testing.T) {
 func TestChangeItem_getPullURL(t *testing.T) {
 	pull := "https://github.com/OpenAPITools/openapi-generator/pull/5472"
 	type fields struct {
-		PullURL   *string
+		PullURL *string
 	}
 	tests := []struct {
 		name   string
@@ -212,7 +212,7 @@ func TestChangeItem_getPullURL(t *testing.T) {
 
 func TestChangeItem_getGroup(t *testing.T) {
 	type fields struct {
-		Group     *string
+		Group *string
 	}
 	tests := []struct {
 		name   string
@@ -260,15 +260,15 @@ func TestChangeItem_getCommitHashShort(t *testing.T) {
 
 func TestChangeItem_CommitURL(t *testing.T) {
 	type fields struct {
-		CommitURLRaw     *string
+		CommitURLRaw *string
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		want   string
 	}{
-		{ "empty CommitURL", fields{CommitURLRaw: nil}, ""},
-		{ "populated CommitURL", fields{CommitURLRaw: p("https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd")}, "https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd"},
+		{"empty CommitURL", fields{CommitURLRaw: nil}, ""},
+		{"populated CommitURL", fields{CommitURLRaw: p("https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd")}, "https://github.com/jimschubert/changelog/commit/6db2267d8fbc2929655884825a76856bc3244acd"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

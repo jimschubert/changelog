@@ -47,10 +47,6 @@ func createTempConfig(t *testing.T, data string) (fileLocation string, cleanup f
 	return filePath, func() { _ = os.RemoveAll(filePath) }
 }
 
-func ptrResolveType(t ResolveType) *ResolveType {
-	return &t
-}
-
 func ptrStringArray(s ...string) *[]string {
 	arr := make([]string, 0)
 	if len(s) > 0 {
@@ -61,14 +57,15 @@ func ptrStringArray(s ...string) *[]string {
 
 func TestConfig_Load(t *testing.T) {
 	type fields struct {
-		JSONData    string
-		ResolveType *ResolveType
-		Owner       string
-		Repo        string
-		Groupings   *[]string
-		Exclude     *[]string
-		Enterprise  *string
-		Template    *string
+		JSONData      string
+		ResolveType   *ResolveType
+		Owner         string
+		Repo          string
+		Groupings     *[]string
+		Exclude       *[]string
+		Enterprise    *string
+		Template      *string
+		SortDirection *SortDirection
 	}
 	tests := []struct {
 		name    string
@@ -76,7 +73,7 @@ func TestConfig_Load(t *testing.T) {
 		wantErr bool
 	}{
 		{"Loads valid empty json", fields{JSONData: "{}"}, false},
-		{"Loads valid json resolve-only", fields{JSONData: `{"resolve": "commits"}`, ResolveType: ptrResolveType(Commits)}, false},
+		{"Loads valid json resolve-only", fields{JSONData: `{"resolve": "commits"}`, ResolveType: Commits.Ptr()}, false},
 		{"Fail on valid json with invalid data type resolve-only", fields{JSONData: `{"resolve": 1.0}`}, true}, // note that 1 would resolve since enum is an int
 		{"Loads valid json owner-only", fields{JSONData: `{"owner": "jimschubert"}`, Owner: "jimschubert"}, false},
 		{"Fail on valid json with invalid data type owner-only", fields{JSONData: `{"owner": []}`}, true},
@@ -89,17 +86,20 @@ func TestConfig_Load(t *testing.T) {
 		{"Loads valid json enterprise-only", fields{JSONData: `{"enterprise": "https://ghe.example.com"}`, Enterprise: p("https://ghe.example.com")}, false},
 		{"Fail on valid json with invalid data type enterprise-only", fields{JSONData: `{"enterprise": 0}`}, true},
 		{"Loads valid json template-only", fields{JSONData: `{"template": "/path/to/template"}`, Template: p("/path/to/template")}, false},
+		{"Loads valid json ascending sort-only", fields{JSONData: `{"sort": "asc"}`, SortDirection: Ascending.Ptr()}, false},
+		{"Loads valid json descending sort-only", fields{JSONData: `{"sort": "desc"}`, SortDirection: Descending.Ptr()}, false},
 		{"Fail on valid json with invalid data type template-only", fields{JSONData: `{"template": []}`}, true},
 		{"Loads valid full json",
 			fields{
-				JSONData:    `{"resolve":"commits","owner":"jimschubert","repo":"ossify","groupings":["feature","bug"],"exclude":["wip","help wanted"],"enterprise":"https://ghe.example.com","template":"/path/to/template"}`,
-				ResolveType: ptrResolveType(Commits),
-				Owner:       "jimschubert",
-				Repo:        "ossify",
-				Groupings:   ptrStringArray("feature", "bug"),
-				Exclude:     ptrStringArray("wip", "help wanted"),
-				Enterprise:  p("https://ghe.example.com"),
-				Template:    p("/path/to/template"),
+				JSONData:      `{"resolve":"commits","owner":"jimschubert","repo":"ossify","groupings":["feature","bug"],"exclude":["wip","help wanted"],"enterprise":"https://ghe.example.com","template":"/path/to/template","sort":"asc"}`,
+				ResolveType:   Commits.Ptr(),
+				Owner:         "jimschubert",
+				Repo:          "ossify",
+				Groupings:     ptrStringArray("feature", "bug"),
+				Exclude:       ptrStringArray("wip", "help wanted"),
+				Enterprise:    p("https://ghe.example.com"),
+				Template:      p("/path/to/template"),
+				SortDirection: Ascending.Ptr(),
 			}, false},
 		{"Fails on invalid json",
 			fields{
@@ -130,13 +130,14 @@ func TestConfig_Load(t *testing.T) {
 
 func TestConfig_String(t *testing.T) {
 	type fields struct {
-		ResolveType *ResolveType
-		Owner       string
-		Repo        string
-		Groupings   *[]string
-		Exclude     *[]string
-		Enterprise  *string
-		Template    *string
+		ResolveType   *ResolveType
+		Owner         string
+		Repo          string
+		Groupings     *[]string
+		Exclude       *[]string
+		Enterprise    *string
+		Template      *string
+		SortDirection *SortDirection
 	}
 	tests := []struct {
 		name   string
@@ -145,30 +146,31 @@ func TestConfig_String(t *testing.T) {
 	}{
 		{"outputs string",
 			fields{
-				ResolveType: ptrResolveType(Commits),
-				Owner:       "jimschubert",
-				Repo:        "ossify",
-				Groupings:   ptrStringArray("feature", "bug"),
-				Exclude:     ptrStringArray("wip", "help wanted"),
-				Enterprise:  p("https://ghe.example.com"),
-				Template:    p("/path/to/template"),
-			}, `Config: { ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[feature bug] Exclude: &[wip help wanted] Enterprise: https://ghe.example.com Template: /path/to/template Sort:  }`},
+				ResolveType:   Commits.Ptr(),
+				Owner:         "jimschubert",
+				Repo:          "ossify",
+				Groupings:     ptrStringArray("feature", "bug"),
+				Exclude:       ptrStringArray("wip", "help wanted"),
+				Enterprise:    p("https://ghe.example.com"),
+				Template:      p("/path/to/template"),
+				SortDirection: Ascending.Ptr(),
+			}, `Config: { ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[feature bug] Exclude: &[wip help wanted] Enterprise: https://ghe.example.com Template: /path/to/template Sort: asc }`},
 
 		{"outputs string for nil properties",
-			fields{
-			}, `Config: { ResolveType: <nil> Owner:  Repo:  Groupings: <nil> Exclude: <nil> Enterprise:  Template:  Sort:  }`},
+			fields{}, `Config: { ResolveType: <nil> Owner:  Repo:  Groupings: <nil> Exclude: <nil> Enterprise:  Template:  Sort:  }`},
 	}
 	// Config: {ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[feature bug] Exclude: &[wip help wanted] Enterprise: 0xc00003c5b0 Template: 0xc00003c5c0}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Config{
-				ResolveType: tt.fields.ResolveType,
-				Owner:       tt.fields.Owner,
-				Repo:        tt.fields.Repo,
-				Groupings:   tt.fields.Groupings,
-				Exclude:     tt.fields.Exclude,
-				Enterprise:  tt.fields.Enterprise,
-				Template:    tt.fields.Template,
+				ResolveType:   tt.fields.ResolveType,
+				Owner:         tt.fields.Owner,
+				Repo:          tt.fields.Repo,
+				Groupings:     tt.fields.Groupings,
+				Exclude:       tt.fields.Exclude,
+				Enterprise:    tt.fields.Enterprise,
+				Template:      tt.fields.Template,
+				SortDirection: tt.fields.SortDirection,
 			}
 			if got := c.String(); got != tt.want {
 				t.Errorf("String() = %v, want %v", got, tt.want)

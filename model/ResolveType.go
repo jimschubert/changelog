@@ -22,7 +22,7 @@ type ResolveType uint8
 
 const (
 	// Commits only
-	Commits      ResolveType = 1 << iota
+	Commits ResolveType = 1 << iota
 	// PullRequests requests that we pull PR information if available
 	PullRequests ResolveType = 1 << iota
 )
@@ -73,4 +73,8 @@ func (r ResolveType) String() string {
 	default:
 		return "commits"
 	}
+}
+
+func (r ResolveType) Ptr() *ResolveType {
+	return &r
 }

@@ -26,7 +26,9 @@ const (
 
 // MarshalJSON converts SortDirection into a string representation sufficient for JSON
 func (s *SortDirection) MarshalJSON() ([]byte, error) {
-	if s == nil { return []byte(""), nil }
+	if s == nil {
+		return []byte(""), nil
+	}
 	it := *s
 	switch it {
 	case Ascending:
@@ -64,6 +66,10 @@ func (s SortDirection) String() string {
 	case Descending:
 		fallthrough
 	default:
-		return "decs"
+		return "desc"
 	}
+}
+
+func (s SortDirection) Ptr() *SortDirection {
+	return &s
 }
