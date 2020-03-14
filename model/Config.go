@@ -23,8 +23,13 @@ import (
 	"strings"
 )
 
+// Grouping allows assigning a grouping name with a set of regex patterns or texts.
+// These patterns are evaluated against commit titles and, if resolving pull requests, labels.
 type Grouping struct {
+	// Name of the group, displayed in changelog output
 	Name string `json:"name"`
+
+	// Patterns to be evaluated for association in this group
 	Patterns []string `json:"patterns"`
 }
 
@@ -39,11 +44,11 @@ type Config struct {
 	// The target repository
 	Repo string `json:"repo"`
 
-	// A set of square-bracket wrapped texts and/or labels (if resolving pull requests) we will define groupings for
+	// A set of Grouping objects which allow to define groupings for changelog output.
 	// Commits are associated with the first matching group.
 	Groupings *[]Grouping `json:"groupings"`
 
-	// As set of square-bracket wrapped texts and/or labels to be excluded from output.
+	// As set of square-bracket regex patterns, wrapped texts and/or labels to be excluded from output.
 	// If the commit message or pr labels reference any text in this Exclude set, that commit
 	// will be ignored./**/
 	Exclude *[]string `json:"exclude"`

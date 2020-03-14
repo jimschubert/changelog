@@ -195,28 +195,47 @@ func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan
 	}
 
 	if !isMergeCommit {
-		var t *time.Time
-		if commit.GetCommit() != nil && (*commit.GetCommit()).GetAuthor() != nil && (*(*commit.GetCommit()).GetAuthor()).Date != nil {
-			t = (*(*commit.GetCommit()).GetAuthor()).Date
+		if !c.shouldExclude(commit) {
+			var t *time.Time
+			if commit.GetCommit() != nil && (*commit.GetCommit()).GetAuthor() != nil && (*(*commit.GetCommit()).GetAuthor()).Date != nil {
+				t = (*(*commit.GetCommit()).GetAuthor()).Date
+			}
+
+			grouping := c.findGroup(commit)
+
+			// TODO: Max count?
+			// TODO: Excludes
+			ci := &model.ChangeItem{
+				AuthorRaw:        commit.Author.Login,
+				AuthorURLRaw:     commit.Author.HTMLURL,
+				CommitMessageRaw: commit.Commit.Message,
+				DateRaw:          t,
+				CommitHashRaw:    commit.SHA,
+				CommitURLRaw:     commit.HTMLURL,
+				GroupRaw:         grouping,
+			}
+			c.applyPullPropertiesChangeItem(ci)
+
+			ch <- ci
 		}
-
-		grouping := c.findGroup(commit)
-
-		// TODO: Max count?
-		// TODO: Excludes
-		ci := &model.ChangeItem{
-			AuthorRaw:        commit.Author.Login,
-			AuthorURLRaw:     commit.Author.HTMLURL,
-			CommitMessageRaw: commit.Commit.Message,
-			DateRaw:          t,
-			CommitHashRaw:    commit.SHA,
-			CommitURLRaw:     commit.HTMLURL,
-			GroupRaw:         grouping,
-		}
-		c.applyPullPropertiesChangeItem(ci)
-
-		ch <- ci
 	}
+}
+
+
+func (c *Changelog) shouldExclude(commit *github.RepositoryCommit) bool {
+	if c.Exclude == nil || len(*c.Exclude) == 0 {
+		return false
+	}
+
+	title := strings.Split(commit.GetCommit().GetMessage(), "\n")[0]
+	for _, pattern := range *c.Exclude {
+		re := regexp.MustCompile(pattern)
+		if re.Match([]byte(title)) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *Changelog) findGroup(commit *github.RepositoryCommit) *string {
