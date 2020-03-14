@@ -20,8 +20,8 @@ import (
 	"changelog/model"
 )
 
-const emptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
-const defaultEnd = "HEAD"
+const emptyTree = "master~1"
+const defaultEnd = "master"
 const defaultTemplate = `
 ## {{.Version}}
 
@@ -37,15 +37,6 @@ type Changelog struct {
 	*model.Config
 	From string
 	To   string
-}
-
-type data struct {
-	Version         string
-	PreviousVersion string
-	Items           []model.ChangeItem
-	DiffURL         string
-	PatchURL        string
-	CompareURL      string
 }
 
 func newContext(c context.Context) (context.Context, context.CancelFunc) {
@@ -158,16 +149,21 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.Co
 		sort.Sort(CommitDescendingSorter(all))
 	}
 
-	d := &data{
+	grouped := make(map[string][]model.ChangeItem)
+	for _, item := range all {
+		grouped[item.Group()] = append(grouped[item.Group()], item)
+	}
+
+	d := &model.TemplateData{
 		PreviousVersion: c.From,
 		Version:         c.To,
 		Items:           all,
 		CompareURL:      compareURL,
 		DiffURL:         diffURL,
 		PatchURL:        patchURL,
+		Grouped:         grouped,
 	}
 
-	// TODO: Output in groups if available
 	var tpl = defaultTemplate
 	if c.Config.Template != nil {
 		b, templateErr := ioutil.ReadFile(*c.Config.Template)
@@ -204,7 +200,6 @@ func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan
 			grouping := c.findGroup(commit)
 
 			// TODO: Max count?
-			// TODO: Excludes
 			ci := &model.ChangeItem{
 				AuthorRaw:        commit.Author.Login,
 				AuthorURLRaw:     commit.Author.HTMLURL,
@@ -220,7 +215,6 @@ func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan
 		}
 	}
 }
-
 
 func (c *Changelog) shouldExclude(commit *github.RepositoryCommit) bool {
 	if c.Exclude == nil || len(*c.Exclude) == 0 {

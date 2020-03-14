@@ -37,7 +37,7 @@ var opts struct {
 
 	From string `short:"f" long:"from" description:"Begin changelog from this commit or tag"`
 
-	To string `short:"t" long:"to" description:"End changelog at this commit or tag" default:"HEAD"`
+	To string `short:"t" long:"to" description:"End changelog at this commit or tag" default:"master"`
 
 	Config *string `short:"c" long:"config" description:"Config file location for more advanced options beyond defaults"`
 
