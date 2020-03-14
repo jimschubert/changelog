@@ -104,7 +104,8 @@ More advanced scenarios require an external JSON configuration object which can 
 
 ```json5
 {
-  // "commits" or "prs", defaults to commits. "prs" will soon allow for resolving labels from pull requests
+  // "commits" or "prs", defaults to commits. "prs" will soon allow for resolving labels 
+  // from pull requests
   "resolve": "commits",
 
   // "asc" or "desc", determines the order of commits in the output
@@ -127,7 +128,8 @@ More advanced scenarios require an external JSON configuration object which can 
     { "name":  "Contributions", "patterns":  [ "(?i)\\bfeat\\b" ] }
   ],
 
-  // Exclude commits based on this set of patterns or texts (useful for common maintenance commit messages)
+  // Exclude commits based on this set of patterns or texts
+  // (useful for common maintenance commit messages)
   "exclude": [
     "^(?i)release\\s+\\d+\\.\\d+\\.\\d+",
     "^(?i)minor fix\\b",
@@ -208,21 +210,22 @@ Now, run this against [cli/cli](https://github.com/cli/cli) v0.5.6 and v0.5.7. V
 
 ```bash
 docker run -e GITHUB_TOKEN=yourtoken \
-           -e GITHUB_OWNER=cli \
-           -e GITHUB_REPO=cli \
-   docker.pkg.github.com/jimschubert/changelog/changelog:latest -f v0.5.6 -t v0.5.7 >> /tmp/changelog/CHANGELOG.md
+   -e GITHUB_OWNER=cli \
+   -e GITHUB_REPO=cli \
+   jimschubert/changelog:latest -f v0.5.6 -t v0.5.7 >> /tmp/changelog/CHANGELOG.md
 ```
 
 And via cli:
 
 ```bash
 export GITHUB_TOKEN=your-token 
-./changelog -o cli -r cli -f v0.5.6 -t v0.5.7 -c /tmp/changelog/config.json >> /tmp/changelog/CHANGELOG.md
+./changelog -o cli -r cli -f v0.5.6 -t v0.5.7 \
+    -c /tmp/changelog/config.json >> /tmp/changelog/CHANGELOG.md
 ```
 
 This changelog output in `/tmp/changelog/CHANGELOG.md` should look like this:
 
-```json
+```text
 ## v0.5.7
 
 ### Fixes
