@@ -118,7 +118,7 @@ func wait(ch chan struct{}, wg *sync.WaitGroup) {
 }
 
 func (c *Changelog) applyPullPropertiesChangeItem(ci *model.ChangeItem) {
-	re := regexp.MustCompile(`.+?\(#(\d+)\)$`)
+	re := regexp.MustCompile(`.+?#(\d+).+?`)
 	title := ci.Title()
 	match := re.FindStringSubmatch(title)
 	if match != nil && len(match) > 0 {
