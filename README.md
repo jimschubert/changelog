@@ -4,6 +4,7 @@
 ![Go Version](https://img.shields.io/github/go-mod/go-version/jimschubert/changelog)
 ![Go](https://github.com/jimschubert/changelog/workflows/Go/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jimschubert/changelog)](https://goreportcard.com/report/github.com/jimschubert/changelog)
+![Docker Pulls](https://img.shields.io/docker/pulls/jimschubert/changelog)
 
 Changelog is a cross-platform changelog generator for GitHub repositories. It queries between any two git branches or tags as supported by the [GitHub Commits API](https://developer.github.com/v3/repos/commits/#compare-two-commits),
 and generates a changelog of commits between the two. It supports [templates](https://golang.org/pkg/text/template/) for those who want more control over generated output.
