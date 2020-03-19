@@ -26,7 +26,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Build and Test
-        run: go test -v ./...
+        run: go test -v -cover ./...
 
   Docker-Image:
     runs-on: ubuntu-latest
