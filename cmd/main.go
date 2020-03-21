@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/jessevdk/go-flags"
+	log "github.com/sirupsen/logrus"
 
 	"changelog"
 	"changelog/model"
@@ -69,6 +70,8 @@ func main() {
 		return
 	}
 
+	initLogging()
+
 	config := model.LoadOrNewConfig(opts.Config, opts.Owner, opts.Repo)
 
 	changes := changelog.Changelog{
@@ -81,4 +84,17 @@ func main() {
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stdout, "generation failed: %s", err)
 	}
+}
+
+func initLogging() {
+	logLevel, ok := os.LookupEnv("LOG_LEVEL")
+	if !ok {
+		logLevel = "error"
+	}
+	ll, err := log.ParseLevel(logLevel)
+	if err != nil {
+		ll = log.DebugLevel
+	}
+	log.SetLevel(ll)
+	log.SetOutput(os.Stderr)
 }

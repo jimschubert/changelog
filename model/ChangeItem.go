@@ -138,7 +138,8 @@ func (ci *ChangeItem) PullID() (string, error) {
 	url := ci.PullURL()
 	if len(url) > 0 {
 		parts := strings.Split(url, "/")
-		return parts[len(parts)-1], nil
+		id := parts[len(parts)-1]
+		return id, nil
 	}
 
 	return "", fmt.Errorf("no pull url available")

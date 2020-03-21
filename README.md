@@ -247,3 +247,7 @@ This changelog output in `/tmp/changelog/CHANGELOG.md` should look like this:
 
 <em>For more details, see <a href="https://github.com/cli/cli/compare/v0.5.6...v0.5.7">v0.5.6..v0.5.7</a></em>
 ```
+
+### Debugging
+
+You may debug select operations such as groupings and exclusions by exporting `LOG_LEVEL=debug`.

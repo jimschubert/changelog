@@ -9,12 +9,14 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
 	"time"
 
 	"github.com/google/go-github/v29/github"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
 	"changelog/model"
@@ -38,6 +40,8 @@ type Changelog struct {
 	From string
 	To   string
 }
+
+type clientContext struct {}
 
 func newContext(c context.Context) (context.Context, context.CancelFunc) {
 	timeout, cancel := context.WithTimeout(c, 10*time.Second)
@@ -74,7 +78,9 @@ func (c *Changelog) Generate(writer io.Writer) error {
 		client = github.NewClient(tc)
 	}
 
-	compareContext, compareCancel := newContext(context.Background())
+	clientCtxt := context.WithValue(ctx, clientContext{}, client)
+
+	compareContext, compareCancel := newContext(clientCtxt)
 	defer compareCancel()
 
 	// TODO: Fail if comparison is behind (example v4.0.0..v3.0.0)?
@@ -93,7 +99,7 @@ func (c *Changelog) Generate(writer io.Writer) error {
 	for _, commit := range (*comparison).Commits {
 		wg.Add(1)
 		go func(commit github.RepositoryCommit) {
-			c.convertToChangeItem(&commit, ciChan, &wg)
+			c.convertToChangeItem(&commit, ciChan, &wg, &clientCtxt)
 		}(commit)
 	}
 
@@ -105,7 +111,9 @@ func (c *Changelog) Generate(writer io.Writer) error {
 		case e := <-errorChan:
 			return e
 		case ci := <-ciChan:
-			all = append(all, *ci)
+			if ci != nil {
+				all = append(all, *ci)
+			}
 		case <-doneChan:
 			return c.writeChangelog(all, comparison, writer)
 		}
@@ -133,6 +141,13 @@ func (c *Changelog) applyPullPropertiesChangeItem(ci *model.ChangeItem) {
 			buffer.WriteString(match[1])
 			result := buffer.String()
 			ci.PullURLRaw = &result
+
+			log.WithFields(log.Fields{
+				"baseURL": baseUrl,
+				"commitIdx": idx,
+				"pullURL": ci.PullURL(),
+				"isPull": ci.IsPull(),
+			}).Debug("applyPullPropertiesChangeItem")
 		}
 	}
 }
@@ -168,13 +183,14 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.Co
 	if c.Config.Template != nil {
 		b, templateErr := ioutil.ReadFile(*c.Config.Template)
 		if templateErr != nil {
-			_, _ = fmt.Fprintln(os.Stderr, "Unable to load template. Using default.")
+			log.Warn("Unable to load template. Using default.")
 		} else {
+			log.Debug("Using default template.")
 			tpl = string(b)
 		}
 	}
 
-	tmpl, err := template.New("test").Parse(tpl)
+	tmpl, err := template.New("changelog").Parse(tpl)
 	if err != nil {
 		return err
 	}
@@ -183,7 +199,32 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.Co
 	return nil
 }
 
-func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan *model.ChangeItem, wg *sync.WaitGroup) {
+func (c *Changelog) shouldExcludeViaPullAttributes(pullId int, ctx *context.Context) bool {
+	client, ok := (*ctx).Value(clientContext{}).(*github.Client); if !ok {
+		log.Warn("Client context not available for checking pull requests")
+		return false
+	}
+
+	timeout, cancel := newContext(*ctx)
+	defer cancel()
+
+	log.Debugf("Checking pull request %d", pullId)
+	pr, _, e := client.PullRequests.Get(timeout, c.Config.Owner, c.Config.Repo, pullId)
+	if e != nil || pr == nil {
+		return false
+	}
+	if c.shouldExcludeByText(pr.Title) {
+		return true
+	}
+	for _, label := range pr.Labels {
+		if c.shouldExcludeByText(label.Name) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan *model.ChangeItem, wg *sync.WaitGroup, ctx *context.Context) {
 	defer wg.Done()
 	var isMergeCommit = false
 	if commit.GetCommit() != nil && len(commit.GetCommit().Parents) > 1 {
@@ -192,43 +233,66 @@ func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan
 
 	if !isMergeCommit {
 		if !c.shouldExclude(commit) {
+			excludeByGroup := false
 			var t *time.Time
 			if commit.GetCommit() != nil && (*commit.GetCommit()).GetAuthor() != nil && (*(*commit.GetCommit()).GetAuthor()).Date != nil {
 				t = (*(*commit.GetCommit()).GetAuthor()).Date
 			}
 
 			grouping := c.findGroup(commit)
+			excludeByGroup = c.shouldExcludeByText(grouping)
 
-			// TODO: Max count?
-			ci := &model.ChangeItem{
-				AuthorRaw:        commit.Author.Login,
-				AuthorURLRaw:     commit.Author.HTMLURL,
-				CommitMessageRaw: commit.Commit.Message,
-				DateRaw:          t,
-				CommitHashRaw:    commit.SHA,
-				CommitURLRaw:     commit.HTMLURL,
-				GroupRaw:         grouping,
+			if !excludeByGroup {
+				// TODO: Max count?
+				ci := &model.ChangeItem{
+					AuthorRaw:        commit.Author.Login,
+					AuthorURLRaw:     commit.Author.HTMLURL,
+					CommitMessageRaw: commit.Commit.Message,
+					DateRaw:          t,
+					CommitHashRaw:    commit.SHA,
+					CommitURLRaw:     commit.HTMLURL,
+					GroupRaw:         grouping,
+				}
+				c.applyPullPropertiesChangeItem(ci)
+
+				if ci.IsPull() {
+					pullId, e := ci.PullID(); if e != nil {
+						// In the unlikely case that an unexpected pull url is provided by GitHub API, just emit the change item
+						ch <- ci
+					} else {
+						pr, _ := strconv.Atoi(pullId)
+						if !c.shouldExcludeViaPullAttributes(pr, ctx) {
+							ch <- ci
+						}
+					}
+				} else {
+					ch <- ci
+				}
 			}
-			c.applyPullPropertiesChangeItem(ci)
-
-			ch <- ci
 		}
 	}
 }
 
 func (c *Changelog) shouldExclude(commit *github.RepositoryCommit) bool {
-	if c.Exclude == nil || len(*c.Exclude) == 0 {
-		return false
+	if c.Exclude != nil && len(*c.Exclude) > 0 {
+		title := strings.Split(commit.GetCommit().GetMessage(), "\n")[0]
+		return c.shouldExcludeByText(&title)
 	}
 
-	title := strings.Split(commit.GetCommit().GetMessage(), "\n")[0]
+	return false
+}
+
+func (c *Changelog) shouldExcludeByText(text *string) bool {
+	if text == nil || c.Exclude == nil || len(*c.Exclude) == 0 {
+		return false
+	}
 	for _, pattern := range *c.Exclude {
 		re := regexp.MustCompile(pattern)
-		if re.Match([]byte(title)) {
+		if re.Match([]byte(*text)) {
+			log.WithFields(log.Fields{"text": *text,"pattern":pattern}).Debug("exclude via pattern")
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -241,6 +305,7 @@ func (c *Changelog) findGroup(commit *github.RepositoryCommit) *string {
 				re := regexp.MustCompile(pattern)
 				if re.Match([]byte(title)) {
 					grouping = &g.Name
+					log.WithFields(log.Fields{"grouping":*grouping,"title":title}).Debug("found group name for commit")
 					return grouping
 				}
 			}
