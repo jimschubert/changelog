@@ -23,14 +23,30 @@ import (
 
 const emptyTree = "master~1"
 const defaultEnd = "master"
-const defaultTemplate = `
-## {{.Version}}
+const defaultTemplate = `{{define "GroupTemplate" -}}
+{{- range .Grouped}}
+### {{ .Name }}
 
 {{range .Items -}}
 * [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ({{if .IsPull}}[contributed]({{.PullURL}}) by {{end}}[{{.Author}}]({{.AuthorURL}}))
+{{end -}}
+{{end -}}
+{{end -}}
+{{define "FlatTemplate" -}}
+{{range .Items -}}
+* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ({{if .IsPull}}[contributed]({{.PullURL}}) by {{end}}[{{.Author}}]({{.AuthorURL}}))
+{{end -}}
+{{end -}}
+{{define "DefaultTemplate" -}}
+## {{.Version}}
+{{if len .Grouped -}}
+{{template "GroupTemplate" . -}}   
+{{- else}}
+{{template "FlatTemplate" . -}}
 {{end}}
-
 <em>For more details, see <a href="{{.CompareURL}}">{{.PreviousVersion}}..{{.Version}}</a></em>
+{{end -}}
+{{template "DefaultTemplate" . -}}
 `
 
 // Changelog holds the information required to define the bounds for the changelog
@@ -165,7 +181,29 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.Co
 
 	grouped := make(map[string][]model.ChangeItem)
 	for _, item := range all {
-		grouped[item.Group()] = append(grouped[item.Group()], item)
+		g := item.Group()
+		if len(g) > 0  {
+			grouped[g] = append(grouped[g], item)
+		}
+	}
+
+	templateGroups := make([]model.TemplateGroup, 0)
+
+	if c.Groupings != nil {
+		for _, grouping := range *c.Groupings {
+			if grouping.Name != "" {
+				if items, ok := grouped[grouping.Name]; ok && len(items) > 0 {
+					log.WithFields(log.Fields{
+						"name": grouping.Name,
+						"count": len(items),
+					}).Debug("found template grouping data")
+					templateGroups = append(templateGroups, model.TemplateGroup{
+						Name:  grouping.Name,
+						Items: items,
+					})
+				}
+			}
+		}
 	}
 
 	d := &model.TemplateData{
@@ -175,7 +213,7 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.Co
 		CompareURL:      compareURL,
 		DiffURL:         diffURL,
 		PatchURL:        patchURL,
-		Grouped:         grouped,
+		Grouped:         templateGroups,
 	}
 
 	var tpl = defaultTemplate
@@ -297,7 +335,7 @@ func (c *Changelog) shouldExcludeByText(text *string) bool {
 
 func (c *Changelog) findGroup(commit *github.RepositoryCommit) *string {
 	var grouping *string
-	if c.Groupings != nil {
+	if c.Groupings != nil && len(*c.Groupings) > 0 {
 		title := strings.Split(commit.GetCommit().GetMessage(), "\n")[0]
 		for _, g := range *c.Groupings {
 			for _, pattern := range g.Patterns {

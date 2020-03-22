@@ -23,6 +23,11 @@ type TemplateData struct {
 	DiffURL         string
 	PatchURL        string
 	CompareURL      string
-	Grouped         map[string][]ChangeItem
+	Grouped         []TemplateGroup
 }
 
+// TemplateGroup allows for data to be grouped in order as defined by user config
+type TemplateGroup struct {
+	Name  string
+	Items []ChangeItem
+}

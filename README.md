@@ -34,6 +34,15 @@ Help Options:
 
 The changelog output is written to standard output and can be redirected to overwrite or append to a file.
 
+### Limitations
+
+As this tool uses GitHub's comparison API for details, there are a few limitations to output:
+
+* Limited to 250 commits
+* Limited to 5000 API requests per hour
+
+See the [GitHub Commits API](https://developer.github.com/v3/repos/commits/#compare-two-commits) for additional details.
+
 ### Basic
 
 The changelog generator doesn't assume a start or end tag, and doesn't evaluate existing tags to determine tag order. If `from` and `to` options are not provided, your changelog will result in the single latest commit on `master`.
@@ -70,21 +79,55 @@ You may specify `GITHUB_OWNER` and `GITHUB_REPO` as environment variables for us
 <em>For more details, see <a href="https://github.com/jimschubert/kopper/compare/v0.0.2...v0.0.3">v0.0.2..v0.0.3</a></em>
 ```
 
-#### Default Template
+#### Templating
 
-The default template used in basic usage will output Markdown. The template is defined as:
+The default template used in basic usage will output Markdown in flatten or grouped display (see later for configuration options). The template is defined as:
 
+```gotemplate
+{{define "GroupTemplate" -}}
+{{- range .Grouped}}
+### {{ .Name }}
+
+{{range .Items -}}
+* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ({{if .IsPull}}[contributed]({{.PullURL}}) by {{end}}[{{.Author}}]({{.AuthorURL}}))
+{{end -}}
+{{end -}}
+{{end -}}
+{{define "FlatTemplate" -}}
+{{range .Items -}}
+* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ({{if .IsPull}}[contributed]({{.PullURL}}) by {{end}}[{{.Author}}]({{.AuthorURL}}))
+{{end -}}
+{{end -}}
+{{define "DefaultTemplate" -}}
+## {{.Version}}
+{{if len .Grouped -}}
+{{template "GroupTemplate" . -}}   
+{{- else}}
+{{template "FlatTemplate" . -}}
+{{end}}
+<em>For more details, see <a href="{{.CompareURL}}">{{.PreviousVersion}}..{{.Version}}</a></em>
+{{end -}}
+{{template "DefaultTemplate" . -}}
 ```
+
+Groupings will be displayed in the order they're defined in your external configuration.
+
+You must define an external JSON configuration file to override the default template. For example, suppose you want to display flat commit history and link to diff, patch, and compare URLs. You could define a template like so:
+
+```gotemplate
 ## {{.Version}}
 
 {{range .Items -}}
 * [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ({{if .IsPull}}[contributed]({{.PullURL}}) by {{end}}[{{.Author}}]({{.AuthorURL}}))
 {{end}}
 
-<em>For more details, see <a href="{{.CompareURL}}">{{.PreviousVersion}}..{{.Version}}</a></em>
+### Links
+<ul>
+<li><a href="{{.CompareURL}}">Compare {{.PreviousVersion}}..{{.Version}}</a></li>
+<li><a href="{{.DiffURL}}">Diff {{.PreviousVersion}}..{{.Version}}</a></li>
+<li><a href="{{.PatchURL}}">Patch {{.PreviousVersion}}..{{.Version}}</a></li>
+</ul>
 ```
-
-Currently, you must define an external JSON configuration file to override the default template.
 
 ## Install
 
@@ -140,29 +183,30 @@ More advanced scenarios require an external JSON configuration object which can 
 }
 ```
 
-### Grouping
+### Custom templating
 
-Grouping is done by the `name` property of the groupings array objects. You will want to provide a custom template to display groupings.
+Grouping is done by the `name` property of the groupings array objects, in the order in which groupings are declared.
+Groupings are displayed by default, but suppose you want to provide a custom template to display grouping differently. In this example, we'll only display the author name if the commit comes from a pull request.
 
-For example, create a directory at `/tmp/changelog` to contain a sample JSON and template.
+First, create a directory at `/tmp/changelog` to contain a sample JSON and template.
 
 Save the follow **template** as `template.tmpl`:
 
 ```gotemplate
 ## {{.Version}}
 
-{{range $key, $value := .Grouped -}}
-### {{ $key }}
+{{range .Grouped -}}
+### {{ .Name }}
 
-{{range $value -}}
-* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ({{if .IsPull}}[contributed]({{.PullURL}}) by {{end}}[{{.Author}}]({{.AuthorURL}}))
+{{range .Items -}}
+* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}}{{if .IsPull}} ([contributed]({{.PullURL}}) by [{{.Author}}]({{.AuthorURL}})){{end}}
 {{end}}
 {{end}}
 
 <em>For more details, see <a href="{{.CompareURL}}">{{.PreviousVersion}}..{{.Version}}</a></em>
 ```
 
-And save the following as `config.json` (note: template currently requires a full path to the template file):
+Save the following as `config.json` (note: template currently requires a full path to the template file):
 
 ```json
 {
@@ -232,21 +276,23 @@ This changelog output in `/tmp/changelog/CHANGELOG.md` should look like this:
 
 ### Fixes
 
-* [4c3e498021](https://github.com/cli/cli/commit/4c3e498021997b40d3c78f8c858ed734f819b064) Fix column alignment and truncation for Eastern Asian languages ([mislav](https://github.com/mislav))
-* [4ee995dafd](https://github.com/cli/cli/commit/4ee995dafdf98730c292c63c1b8a0fab5f2198d1) fix(486): Getting issue list on no remotes specified ([yashLadha](https://github.com/yashLadha))
-* [f9649ebddd](https://github.com/cli/cli/commit/f9649ebddd1b6a9731046c98cd8019a245c82fde) Merge pull request #521 from yashLadha/bug/issue_list_on_no_remote ([mislav](https://github.com/mislav))
+* [f9649ebddd](https://github.com/cli/cli/commit/f9649ebddd1b6a9731046c98cd8019a245c82fde) Merge pull request #521 from yashLadha/bug/issue_list_on_no_remote ([contributed](https://github.com/cli/cli/pull/521) by [mislav](https://github.com/mislav))
+* [4ee995dafd](https://github.com/cli/cli/commit/4ee995dafdf98730c292c63c1b8a0fab5f2198d1) fix(486): Getting issue list on no remotes specified
+* [4c3e498021](https://github.com/cli/cli/commit/4c3e498021997b40d3c78f8c858ed734f819b064) Fix column alignment and truncation for Eastern Asian languages
 
 ### Other Contributions
 
-* [4727fc4659](https://github.com/cli/cli/commit/4727fc465982d3029324fc5b77ee37e28c29a2b3) Ensure descriptive error when no github.com remotes found ([mislav](https://github.com/mislav))
-* [69304ce9af](https://github.com/cli/cli/commit/69304ce9af6100e49bb6a128a81639d48ac590ec) Merge pull request #518 from cli/eastern-asian ([mislav](https://github.com/mislav))
-* [1a82e39ba9](https://github.com/cli/cli/commit/1a82e39ba9627654aca22e9608d5b81589855d41) Respect title & body from arguments to `pr create -w` ([mislav](https://github.com/mislav))
-* [b5d0b7c640](https://github.com/cli/cli/commit/b5d0b7c640ad897f395a72074a0f4b31787e5826) Merge pull request #523 from cli/title-body-web ([mislav](https://github.com/mislav))
+* [b5d0b7c640](https://github.com/cli/cli/commit/b5d0b7c640ad897f395a72074a0f4b31787e5826) Merge pull request #523 from cli/title-body-web ([contributed](https://github.com/cli/cli/pull/523) by [mislav](https://github.com/mislav))
+* [1a82e39ba9](https://github.com/cli/cli/commit/1a82e39ba9627654aca22e9608d5b81589855d41) Respect title & body from arguments to `pr create -w`
+* [69304ce9af](https://github.com/cli/cli/commit/69304ce9af6100e49bb6a128a81639d48ac590ec) Merge pull request #518 from cli/eastern-asian ([contributed](https://github.com/cli/cli/pull/518) by [mislav](https://github.com/mislav))
+* [4727fc4659](https://github.com/cli/cli/commit/4727fc465982d3029324fc5b77ee37e28c29a2b3) Ensure descriptive error when no github.com remotes found
 
 
 
 <em>For more details, see <a href="https://github.com/cli/cli/compare/v0.5.6...v0.5.7">v0.5.6..v0.5.7</a></em>
 ```
+
+Notice that this differs from the default in that it removes the committer name from the two commits in each section which were not pull requests.
 
 ### Debugging
 
