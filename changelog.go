@@ -3,7 +3,6 @@ package changelog
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -53,7 +52,7 @@ func (c *Changelog) Generate(writer io.Writer) error {
 	ctx := context.Background()
 	token, found := os.LookupEnv("GITHUB_TOKEN")
 	if !found {
-		fmt.Println("Environment variable GITHUB_TOKEN not found.")
+		log.Fatal("Environment variable GITHUB_TOKEN not found.")
 		os.Exit(1)
 	}
 
