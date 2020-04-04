@@ -21,6 +21,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"gopkg.in/yaml.v2"
 )
 
 // Grouping allows assigning a grouping name with a set of regex patterns or texts.
@@ -76,7 +78,11 @@ func (c *Config) Load(path string) error {
 		return err
 	}
 
-	return json.Unmarshal(b, c)
+	if strings.HasSuffix(path, ".json") {
+		return json.Unmarshal(b, c)
+	}
+
+	return yaml.Unmarshal(b, c)
 }
 
 // String displays a human readable representation of a Config

@@ -1,0 +1,22 @@
+{
+  "resolve": "commits",
+  "owner": "jimschubert",
+  "repo": "ossify",
+  "groupings": [
+    {
+      "name": "feature",
+      "patterns": []
+    },
+    {
+      "name": "bug",
+      "patterns": []
+    }
+  ],
+  "exclude": [
+    "wip",
+    "help wanted"
+  ],
+  "enterprise": "https://ghe.example.com",
+  "template": "/path/to/template",
+  "sort": "asc"
+}

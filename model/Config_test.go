@@ -31,7 +31,7 @@ func hash(s string) uint32 {
 	return h.Sum32()
 }
 
-func createTempConfig(t *testing.T, data string) (fileLocation string, cleanup func()) {
+func createTempConfig(t *testing.T, data string, extension string) (fileLocation string, cleanup func()) {
 	t.Helper()
 	tempDir, err := ioutil.TempDir("", "Config_test")
 	if err != nil {
@@ -39,7 +39,7 @@ func createTempConfig(t *testing.T, data string) (fileLocation string, cleanup f
 	}
 	r := rand.Int()
 	testHash := hash(t.Name())
-	testFile := fmt.Sprintf("file-%d-%d.json", r, testHash)
+	testFile := fmt.Sprintf("file-%d-%d.%s", r, testHash, extension)
 	filePath := filepath.Join(tempDir, testFile)
 	if err := ioutil.WriteFile(filePath, []byte(data), 0644); err != nil {
 		t.Fatal(err)
@@ -74,6 +74,7 @@ func TestConfig_Load(t *testing.T) {
 		Enterprise    *string
 		Template      *string
 		SortDirection *SortDirection
+		TempFileExt   *string
 	}
 	tests := []struct {
 		name    string
@@ -97,9 +98,9 @@ func TestConfig_Load(t *testing.T) {
 		{"Loads valid json ascending sort-only", fields{JSONData: `{"sort": "asc"}`, SortDirection: Ascending.Ptr()}, false},
 		{"Loads valid json descending sort-only", fields{JSONData: `{"sort": "desc"}`, SortDirection: Descending.Ptr()}, false},
 		{"Fail on valid json with invalid data type template-only", fields{JSONData: `{"template": []}`}, true},
-		{"Loads valid full json",
+		{"Loads valid config_full.json",
 			fields{
-				JSONData:      `{"resolve":"commits","owner":"jimschubert","repo":"ossify","groupings":[{"name":"feature","patterns":[]},{"name":"bug","patterns":[]}],"exclude":["wip","help wanted"],"enterprise":"https://ghe.example.com","template":"/path/to/template","sort":"asc"}`,
+				JSONData:      string(helperTestData(t, "config_full.json")),
 				ResolveType:   Commits.Ptr(),
 				Owner:         "jimschubert",
 				Repo:          "ossify",
@@ -109,6 +110,19 @@ func TestConfig_Load(t *testing.T) {
 				Template:      p("/path/to/template"),
 				SortDirection: Ascending.Ptr(),
 			}, false},
+		{"Loads valid config_full.yaml",
+			fields{
+				JSONData:      string(helperTestData(t, "config_full.yaml")),
+				ResolveType:   Commits.Ptr(),
+				Owner:         "jimschubert",
+				Repo:          "ossify",
+				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{} }),
+				Exclude:       ptrStringArray("wip", "help wanted"),
+				Enterprise:    p("https://ghe.example.com"),
+				Template:      p("/path/to/template"),
+				SortDirection: Ascending.Ptr(),
+				TempFileExt  : p("yaml"),
+			}, false},
 		{"Fails on invalid json",
 			fields{
 				JSONData: `{"resolve":"commits":"owner":"jimschubert"}`,
@@ -116,7 +130,13 @@ func TestConfig_Load(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			jsonLocation, cleanup := createTempConfig(t, tt.fields.JSONData)
+			var tmpExt string
+			if tt.fields.TempFileExt != nil {
+				tmpExt = *tt.fields.TempFileExt
+			} else {
+				tmpExt = "json"
+			}
+			jsonLocation, cleanup := createTempConfig(t, tt.fields.JSONData, tmpExt)
 			defer cleanup()
 			t.Run(tt.name, func(t *testing.T) {
 				c := &Config{
