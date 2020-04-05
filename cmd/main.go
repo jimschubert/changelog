@@ -42,6 +42,10 @@ var opts struct {
 
 	Config *string `short:"c" long:"config" description:"Config file location for more advanced options beyond defaults"`
 
+	Local *bool `short:"l" long:"local" description:"Prefer local commits when gathering commit logs (as opposed to querying via API)"`
+
+	MaxCommits *int `long:"max" description:"The maximum number of commits to include"`
+
 	Version bool `short:"v" long:"version" description:"Display version information"`
 }
 
@@ -73,6 +77,8 @@ func main() {
 	initLogging()
 
 	config := model.LoadOrNewConfig(opts.Config, opts.Owner, opts.Repo)
+	config.MaxCommits = opts.MaxCommits
+	config.PreferLocal = opts.Local
 
 	changes := changelog.Changelog{
 		Config: config,

@@ -64,6 +64,12 @@ type Config struct {
 
 	// SortDirection defines the order of commits within the changelog
 	SortDirection *SortDirection `json:"sort"`
+
+	// PreferLocal defines whether commits may be queried locally. Requires executing from within a Git repository.
+	PreferLocal *bool `json:"local"`
+
+	// MaxCommits defines the maximum number of commits to be processed.
+	MaxCommits *int `json:"max_commits"`
 }
 
 // Load a Config from path
@@ -83,6 +89,26 @@ func (c *Config) Load(path string) error {
 	}
 
 	return yaml.Unmarshal(b, c)
+}
+
+// GetPreferLocal returns the user-specified preference for local commit querying, otherwise the default of 'false'
+func (c *Config) GetPreferLocal() bool {
+	if c.PreferLocal == nil {
+		return false
+	}
+
+	return *c.PreferLocal
+}
+
+// GetMaxCommits returns the user-specified preference for maximum commit count, otherwise the default of 500
+func (c *Config) GetMaxCommits() int {
+	if c.MaxCommits == nil {
+		// This default matches the maximum defined in GitHub's compare API.
+		// see https://developer.github.com/v3/repos/commits/#compare-two-commits
+		return 250
+	}
+
+	return *c.MaxCommits
 }
 
 // String displays a human readable representation of a Config

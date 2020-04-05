@@ -176,7 +176,7 @@ func TestChangelog_findGroup(t *testing.T) {
 			c := &Changelog{
 				Config: tt.fields.Config,
 			}
-			if got := c.findGroup(tt.args.commit); !reflect.DeepEqual(got, tt.want) {
+			if got := c.findGroup(tt.args.commit.GetCommit().GetMessage()); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("findGroup() = %v, want %v", got, tt.want)
 			}
 		})
@@ -245,8 +245,8 @@ func TestChangelog_shouldExclude(t *testing.T) {
 			c := &Changelog{
 				Config: tt.fields.Config,
 			}
-			if got := c.shouldExclude(tt.args.commit); got != tt.want {
-				t.Errorf("shouldExclude() = %v, want %v", got, tt.want)
+			if got := c.shouldExcludeViaRepositoryCommit(tt.args.commit); got != tt.want {
+				t.Errorf("shouldExcludeViaRepositoryCommit() = %v, want %v", got, tt.want)
 			}
 		})
 	}
