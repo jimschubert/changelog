@@ -17,7 +17,6 @@ package changelog
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -33,223 +32,6 @@ func commits(items ...model.ChangeItem) *[]model.ChangeItem {
 		arr = append(arr, items...)
 	}
 	return &arr
-}
-
-func TestChangelog_applyPullPropertiesChangeItem(t *testing.T) {
-	p := func(s string) *string {
-		return &s
-	}
-	type fields struct {
-		Config *model.Config
-	}
-	type args struct {
-		ci         *model.ChangeItem
-		expectURL  string
-		expectIsPR bool
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		{"should not apply PR properties when no considered a PR",
-
-			fields{&model.Config{ResolveType: model.Commits.Ptr()}},
-			args{
-				&model.ChangeItem{CommitMessageRaw: p("Some Commit Message with numbers 12345 and no # symbol preceding")},
-				"",
-				false,
-			},
-		},
-		{"should apply PR properties when formatted as 'Merge pull request #523 …'",
-
-			fields{&model.Config{ResolveType: model.Commits.Ptr()}},
-			args{
-				&model.ChangeItem{
-					CommitMessageRaw: p("Merge pull request #523 from cli/title-body-web"),
-					CommitURLRaw:     p("https://github.com/cli/cli/commit/b5d0b7c640ad897f395a72074a0f4b31787e5826"),
-				},
-				"https://github.com/cli/cli/pull/523",
-				true,
-			},
-		},
-		{"should apply PR properties when formatted as 'Some commit message (#1234)'",
-
-			fields{&model.Config{ResolveType: model.Commits.Ptr()}},
-			args{
-				&model.ChangeItem{
-					CommitMessageRaw: p("Fix Swift4 CI tests (#5540)"),
-					CommitURLRaw:     p("https://github.com/OpenAPITools/openapi-generator/commit/728d03b318a3fd4726c93c0f710bb5bedd1f61ab"),
-				},
-				"https://github.com/OpenAPITools/openapi-generator/pull/5540",
-				true,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Changelog{
-				Config: tt.fields.Config,
-			}
-			c.applyPullPropertiesChangeItem(tt.args.ci)
-			if gotURL := tt.args.ci.PullURL(); gotURL != tt.args.expectURL {
-				t.Errorf("applyPullPropertiesChangeItem() PullURL = %v, want = %v", gotURL, tt.args.expectURL)
-			}
-			if gotIsPR := tt.args.ci.IsPull(); gotIsPR != tt.args.expectIsPR {
-				t.Errorf("applyPullPropertiesChangeItem() IsPR = %v, want = %v", gotIsPR, tt.args.expectIsPR)
-			}
-		})
-	}
-}
-
-func TestChangelog_findGroup(t *testing.T) {
-	p := func(s string) *string {
-		return &s
-	}
-	g := func(grouping ...model.Grouping) *[]model.Grouping {
-		arr := make([]model.Grouping, 0)
-		if len(grouping) > 0 {
-			arr = append(arr, grouping...)
-		}
-		return &arr
-	}
-	type fields struct {
-		Config *model.Config
-	}
-	type args struct {
-		commit *github.RepositoryCommit
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *string
-	}{
-		{"should result in nil group when grouping is nil",
-			fields{&model.Config{Groupings: nil}},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This value is a commit message")}}},
-			nil,
-		},
-		{"should result in found group when grouping has single option",
-			fields{
-				&model.Config{Groupings: g(model.Grouping{Name: "First", Patterns: []string{"^docs:"}})},
-			},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("docs: This value is a commit message")}}},
-			p("First"),
-		},
-		{"should result in first found group when grouping has multiple options (index 0)",
-			fields{
-				&model.Config{Groupings: g(
-					model.Grouping{Name: "First", Patterns: []string{"^docs:"}},
-					model.Grouping{Name: "Second", Patterns: []string{"^second:"}},
-				)},
-			},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("docs: This value is a commit message")}}},
-			p("First"),
-		},
-		{"should result in first found group when grouping has multiple options (index > 0)",
-			fields{
-				&model.Config{Groupings: g(
-					model.Grouping{Name: "First", Patterns: []string{"^docs:"}},
-					model.Grouping{Name: "Second", Patterns: []string{"^second:"}},
-				)},
-			},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("second: This value is a commit message")}}},
-			p("Second"),
-		},
-		{"should support plain-text grouping",
-			fields{
-				&model.Config{
-					Groupings: g(
-						model.Grouping{Name: "First", Patterns: []string{"^docs:"}},
-						model.Grouping{Name: "Second", Patterns: []string{"plain text"}},
-						model.Grouping{Name: "Second", Patterns: []string{"^second:"}},
-					),
-				},
-			},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("second: This value is a plain text commit message")}}},
-			p("Second"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Changelog{
-				Config: tt.fields.Config,
-			}
-			if got := c.findGroup(tt.args.commit.GetCommit().GetMessage()); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("findGroup() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestChangelog_shouldExclude(t *testing.T) {
-	p := func(s string) *string {
-		return &s
-	}
-	type fields struct {
-		Config *model.Config
-	}
-	type args struct {
-		commit *github.RepositoryCommit
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		{"excludes by match in plain text",
-			fields{&model.Config{Exclude: &[]string{"value"}}},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This value is a commit message")}}},
-			true,
-		},
-		{"should not exclude by non-match in plain text",
-			fields{&model.Config{Exclude: &[]string{"banana"}}},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This value is a commit message")}}},
-			false,
-		},
-		{"excludes by match in simple regular expression",
-			fields{&model.Config{Exclude: &[]string{"\\d+"}}},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This is a 1234 value commit message")}}},
-			true,
-		},
-		{"should not exclude by non-match in simple regular expression",
-			fields{&model.Config{Exclude: &[]string{"\\d+"}}},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This is a non-match value commit message")}}},
-			false,
-		},
-		{"excludes by match in complex regular expression",
-			fields{&model.Config{Exclude: &[]string{"(?i)\\d{1,4}\\s(VALUE)"}}},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This is a 1234 value commit message")}}},
-			true,
-		},
-		{"should not exclude by non-match in complex regular expression",
-			fields{&model.Config{Exclude: &[]string{"(?i)\\d{1,4}\\s(VALUE)"}}},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This is a regular commit message")}}},
-			false,
-		},
-		{"should not exclude for nil excludes",
-			fields{&model.Config{Exclude: nil}},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This is a regular commit message")}}},
-			false,
-		},
-		{"should not exclude for empty excludes",
-			fields{&model.Config{Exclude: &[]string{}}},
-			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This is a regular commit message")}}},
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Changelog{
-				Config: tt.fields.Config,
-			}
-			if got := c.shouldExcludeViaRepositoryCommit(tt.args.commit); got != tt.want {
-				t.Errorf("shouldExcludeViaRepositoryCommit() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestCommitDescendingSorter(t *testing.T) {
@@ -456,7 +238,7 @@ func TestChangelog_writeChangelog(t *testing.T) {
 		Owner:         "jimschubert",
 		Repo:          "changelog",
 		SortDirection: model.Descending.Ptr(),
-		Groupings: nil,
+		Groupings:     nil,
 	}
 
 	groupedConfig := &model.Config{
@@ -505,7 +287,7 @@ func TestChangelog_writeChangelog(t *testing.T) {
 		CommitMessageRaw: p("Initial commit"),
 		CommitHashRaw:    p("ae494dca96571b5cf8cd6ad8c9fccf86d8455982"),
 		CommitURLRaw:     p("https://github.com/jimschubert/changelog/commit/ae494dca96571b5cf8cd6ad8c9fccf86d8455982"),
-		DateRaw: fromTimestamp(1583008420),
+		DateRaw:          fromTimestamp(1583008420),
 	}
 	second := model.ChangeItem{
 		AuthorRaw:        p("jimschubert"),
@@ -513,7 +295,7 @@ func TestChangelog_writeChangelog(t *testing.T) {
 		CommitMessageRaw: p("Add some placeholder command line args"),
 		CommitHashRaw:    p("d707829d23b58326182c3c17fb5f52d275feda6b"),
 		CommitURLRaw:     p("https://github.com/jimschubert/changelog/commit/d707829d23b58326182c3c17fb5f52d275feda6b"),
-		DateRaw: fromTimestamp(1583008987),
+		DateRaw:          fromTimestamp(1583008987),
 	}
 
 	type fields struct {
@@ -576,7 +358,7 @@ func TestChangelog_writeChangelog(t *testing.T) {
 				To:     tt.fields.To,
 			}
 			writer := &bytes.Buffer{}
-			err := c.writeChangelog(tt.args.all, tt.args.comparison, writer)
+			err := c.writeChangelog(tt.args.all, writer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("writeChangelog() error = %v, wantErr %v", err, tt.wantErr)
 				return

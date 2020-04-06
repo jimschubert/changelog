@@ -1,24 +1,24 @@
 package changelog
 
 import (
-	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
-	"regexp"
+	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"text/template"
-	"time"
 
 	"github.com/google/go-github/v29/github"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
 	"changelog/model"
+	"changelog/service"
 )
 
 const emptyTree = "master~1"
@@ -56,20 +56,6 @@ type Changelog struct {
 	To   string
 }
 
-type clientContext struct {}
-
-func newContext(c context.Context) (context.Context, context.CancelFunc) {
-	timeout, cancel := context.WithTimeout(c, 10*time.Second)
-	return timeout, cancel
-}
-
-func min(a int, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // Generate will format a changelog, writing to the supplied writer
 func (c *Changelog) Generate(writer io.Writer) error {
 	ctx := context.Background()
@@ -100,17 +86,45 @@ func (c *Changelog) Generate(writer io.Writer) error {
 		client = github.NewClient(tc)
 	}
 
-	clientCtxt := context.WithValue(ctx, clientContext{}, client)
-
-	compareContext, compareCancel := newContext(clientCtxt)
-	defer compareCancel()
-
-	// TODO: Fail if comparison is behind (example v4.0.0..v3.0.0)?
-	comparison, _, compareError := client.Repositories.CompareCommits(compareContext, c.Config.Owner, c.Config.Repo, c.From, c.To)
-
-	if compareError != nil {
-		return compareError
-	}
+	// dir, err := os.Getwd()
+	// if err != nil {
+	// 	log.WithFields(log.Fields{"error": err}).Fatal("Unable to determine current directory for repository.")
+	// }
+	//
+	// repo, err := git.PlainOpen(dir)
+	// if err != nil {
+	// 	log.WithFields(log.Fields{"error": err}).Fatal("Unable to open current directory as a git repository.")
+	// }
+	//
+	// fromTag, err := repo.Tag(c.From)
+	// if err != nil {
+	// 	log.WithFields(log.Fields{"error": err, "from": c.From}).Fatalf("Unable to find 'from' tag.")
+	// }
+	//
+	// toTag, err := repo.Tag(c.To)
+	// if err != nil {
+	// 	log.WithFields(log.Fields{"error": err, "to": c.To}).Fatalf("Unable to find 'to' tag.")
+	// }
+	//
+	// commitIter, err := repo.Log(&git.LogOptions{ From: fromTag.Hash()})
+	//
+	// var iterated []plumbing.Hash
+	//
+	// err = commitIter.ForEach(func(c *object.Commit) error {
+	// 	// If no previous tag is found then from and to are equal
+	// 	if fromTag.Hash() == toTag.Hash() {
+	// 		return nil
+	// 	}
+	// 	if c.Hash == toTag.Hash() {
+	// 		return nil
+	// 	}
+	// 	iterated = append(iterated, c.Hash)
+	// 	return nil
+	// })
+	//
+	// if err != nil {
+	// 	return err
+	// }
 
 	doneChan := make(chan struct{})
 	errorChan := make(chan error)
@@ -118,14 +132,10 @@ func (c *Changelog) Generate(writer io.Writer) error {
 
 	wg := sync.WaitGroup{}
 
-	max := min(len((*comparison).Commits), c.Config.GetMaxCommits())
-	commits := make([]github.RepositoryCommit, max)
-	copy(commits, (*comparison).Commits)
-	for _, commit := range commits {
-		wg.Add(1)
-		go func(commit github.RepositoryCommit) {
-			c.convertToChangeItem(&commit, ciChan, &wg, &clientCtxt)
-		}(commit)
+	githubService := service.NewGitHubService().WithClient(client).WithConfig(c.Config)
+	err := githubService.Process(&ctx, &wg, ciChan, c.From, c.To)
+	if err != nil {
+		return err
 	}
 
 	go wait(doneChan, &wg)
@@ -140,9 +150,30 @@ func (c *Changelog) Generate(writer io.Writer) error {
 				all = append(all, *ci)
 			}
 		case <-doneChan:
-			return c.writeChangelog(all, comparison, writer)
+			return c.writeChangelog(all, writer)
 		}
 	}
+}
+
+func (c *Changelog) GetGitURLs() (*model.GitURLs, error) {
+	gh := "https://github.com"
+	if c.Enterprise != nil {
+		gh = strings.TrimRight(*c.Enterprise, "/api")
+	}
+	u, err := url.Parse(gh)
+	if err != nil {
+		return nil, err
+	}
+	create := func(op string) string {
+		end := fmt.Sprintf("%s...%s%s", c.From, c.To, op)
+		u.Path = path.Join(u.Path, c.Owner, c.Repo, "compare", end)
+		return u.String()
+	}
+	return &model.GitURLs{
+		CompareURL: create(""),
+		DiffURL:    create(".diff"),
+		PatchURL:   create(".patch"),
+	}, nil
 }
 
 func wait(ch chan struct{}, wg *sync.WaitGroup) {
@@ -150,37 +181,19 @@ func wait(ch chan struct{}, wg *sync.WaitGroup) {
 	ch <- struct{}{}
 }
 
-func (c *Changelog) applyPullPropertiesChangeItem(ci *model.ChangeItem) {
-	re := regexp.MustCompile(`.+?#(\d+).+?`)
-	title := ci.Title()
-	match := re.FindStringSubmatch(title)
-	if match != nil && len(match) > 0 {
-		isPull := true
-		ci.IsPullRaw = &isPull
-		baseUrl := ci.CommitURL()
-		idx := strings.LastIndex(baseUrl, "commit")
-		if idx > 0 {
-			var buffer bytes.Buffer
-			buffer.WriteString(baseUrl[0:idx])
-			buffer.WriteString("pull/")
-			buffer.WriteString(match[1])
-			result := buffer.String()
-			ci.PullURLRaw = &result
+func (c *Changelog) writeChangelog(all []model.ChangeItem, writer io.Writer) error {
+	var compareURL = ""
+	var diffURL = ""
+	var patchURL = ""
 
-			log.WithFields(log.Fields{
-				"baseURL": baseUrl,
-				"commitIdx": idx,
-				"pullURL": ci.PullURL(),
-				"isPull": ci.IsPull(),
-			}).Debug("applyPullPropertiesChangeItem")
-		}
+	u, err := c.GetGitURLs()
+	if err != nil {
+		log.Warn("Unable to determine urls for compare, diff, and patch.")
+	} else {
+		compareURL =  u.CompareURL
+		diffURL = u.DiffURL
+		patchURL = u.PatchURL
 	}
-}
-
-func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.CommitsComparison, writer io.Writer) error {
-	compareURL := comparison.GetHTMLURL()
-	diffURL := comparison.GetDiffURL()
-	patchURL := comparison.GetPatchURL()
 
 	switch *c.Config.SortDirection {
 	case model.Ascending:
@@ -244,121 +257,6 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, comparison *github.Co
 
 	_ = tmpl.Execute(writer, d)
 	return nil
-}
-
-func (c *Changelog) shouldExcludeViaPullAttributes(pullId int, ctx *context.Context) bool {
-	client, ok := (*ctx).Value(clientContext{}).(*github.Client); if !ok {
-		log.Warn("Client context not available for checking pull requests")
-		return false
-	}
-
-	timeout, cancel := newContext(*ctx)
-	defer cancel()
-
-	log.Debugf("Checking pull request %d", pullId)
-	pr, _, e := client.PullRequests.Get(timeout, c.Config.Owner, c.Config.Repo, pullId)
-	if e != nil || pr == nil {
-		return false
-	}
-	if c.shouldExcludeByText(pr.Title) {
-		return true
-	}
-	for _, label := range pr.Labels {
-		if c.shouldExcludeByText(label.Name) {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *Changelog) convertToChangeItem(commit *github.RepositoryCommit, ch chan *model.ChangeItem, wg *sync.WaitGroup, ctx *context.Context) {
-	defer wg.Done()
-	var isMergeCommit = false
-	if commit.GetCommit() != nil && len(commit.GetCommit().Parents) > 1 {
-		isMergeCommit = true
-	}
-
-	if !isMergeCommit {
-		if !c.shouldExcludeViaRepositoryCommit(commit) {
-			excludeByGroup := false
-			var t *time.Time
-			if commit.GetCommit() != nil && (*commit.GetCommit()).GetAuthor() != nil && (*(*commit.GetCommit()).GetAuthor()).Date != nil {
-				t = (*(*commit.GetCommit()).GetAuthor()).Date
-			}
-
-			grouping := c.findGroup(commit.GetCommit().GetMessage())
-			excludeByGroup = c.shouldExcludeByText(grouping)
-
-			if !excludeByGroup {
-				// TODO: Max count?
-				ci := &model.ChangeItem{
-					AuthorRaw:        commit.Author.Login,
-					AuthorURLRaw:     commit.Author.HTMLURL,
-					CommitMessageRaw: commit.Commit.Message,
-					DateRaw:          t,
-					CommitHashRaw:    commit.SHA,
-					CommitURLRaw:     commit.HTMLURL,
-					GroupRaw:         grouping,
-				}
-				c.applyPullPropertiesChangeItem(ci)
-
-				if ci.IsPull() {
-					pullId, e := ci.PullID(); if e != nil {
-						// In the unlikely case that an unexpected pull url is provided by GitHub API, just emit the change item
-						ch <- ci
-					} else {
-						pr, _ := strconv.Atoi(pullId)
-						if !c.shouldExcludeViaPullAttributes(pr, ctx) {
-							ch <- ci
-						}
-					}
-				} else {
-					ch <- ci
-				}
-			}
-		}
-	}
-}
-
-func (c *Changelog) shouldExcludeViaRepositoryCommit(commit *github.RepositoryCommit) bool {
-	if c.Exclude != nil && len(*c.Exclude) > 0 {
-		title := strings.Split(commit.GetCommit().GetMessage(), "\n")[0]
-		return c.shouldExcludeByText(&title)
-	}
-
-	return false
-}
-
-func (c *Changelog) shouldExcludeByText(text *string) bool {
-	if text == nil || c.Exclude == nil || len(*c.Exclude) == 0 {
-		return false
-	}
-	for _, pattern := range *c.Exclude {
-		re := regexp.MustCompile(pattern)
-		if re.Match([]byte(*text)) {
-			log.WithFields(log.Fields{"text": *text,"pattern":pattern}).Debug("exclude via pattern")
-			return true
-		}
-	}
-	return false
-}
-
-func (c *Changelog) findGroup(commitMessage string) *string {
-	var grouping *string
-	if c.Groupings != nil && len(*c.Groupings) > 0 {
-		title := strings.Split(commitMessage, "\n")[0]
-		for _, g := range *c.Groupings {
-			for _, pattern := range g.Patterns {
-				re := regexp.MustCompile(pattern)
-				if re.Match([]byte(title)) {
-					grouping = &g.Name
-					log.WithFields(log.Fields{"grouping":*grouping,"title":title}).Debug("found group name for commit")
-					return grouping
-				}
-			}
-		}
-	}
-	return grouping
 }
 
 type CommitDescendingSorter []model.ChangeItem

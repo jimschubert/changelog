@@ -23,6 +23,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/google/go-github/v29/github"
 )
 
 func hash(s string) uint32 {
@@ -224,6 +226,85 @@ func TestLoadOrNewConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := LoadOrNewConfig(tt.args.path, tt.args.owner, tt.args.repo); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("LoadOrNewConfig() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConfig_FindGroup(t *testing.T) {
+	p := func(s string) *string {
+		return &s
+	}
+	g := func(grouping ...Grouping) *[]Grouping {
+		arr := make([]Grouping, 0)
+		if len(grouping) > 0 {
+			arr = append(arr, grouping...)
+		}
+		return &arr
+	}
+	type fields struct {
+		Config *Config
+	}
+	type args struct {
+		commit *github.RepositoryCommit
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *string
+	}{
+		{"should result in nil group when grouping is nil",
+			fields{&Config{Groupings: nil}},
+			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("This value is a commit message")}}},
+			nil,
+		},
+		{"should result in found group when grouping has single option",
+			fields{
+				&Config{Groupings: g(Grouping{Name: "First", Patterns: []string{"^docs:"}})},
+			},
+			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("docs: This value is a commit message")}}},
+			p("First"),
+		},
+		{"should result in first found group when grouping has multiple options (index 0)",
+			fields{
+				&Config{Groupings: g(
+					Grouping{Name: "First", Patterns: []string{"^docs:"}},
+					Grouping{Name: "Second", Patterns: []string{"^second:"}},
+				)},
+			},
+			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("docs: This value is a commit message")}}},
+			p("First"),
+		},
+		{"should result in first found group when grouping has multiple options (index > 0)",
+			fields{
+				&Config{Groupings: g(
+					Grouping{Name: "First", Patterns: []string{"^docs:"}},
+					Grouping{Name: "Second", Patterns: []string{"^second:"}},
+				)},
+			},
+			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("second: This value is a commit message")}}},
+			p("Second"),
+		},
+		{"should support plain-text grouping",
+			fields{
+				&Config{
+					Groupings: g(
+						Grouping{Name: "First", Patterns: []string{"^docs:"}},
+						Grouping{Name: "Second", Patterns: []string{"plain text"}},
+						Grouping{Name: "Second", Patterns: []string{"^second:"}},
+					),
+				},
+			},
+			args{&github.RepositoryCommit{Commit: &github.Commit{Message: p("second: This value is a plain text commit message")}}},
+			p("Second"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := tt.fields.Config
+			if got := c.FindGroup(tt.args.commit.GetCommit().GetMessage()); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("findGroup() = %v, want %v", got, tt.want)
 			}
 		})
 	}

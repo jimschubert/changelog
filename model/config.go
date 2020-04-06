@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -109,6 +111,38 @@ func (c *Config) GetMaxCommits() int {
 	}
 
 	return *c.MaxCommits
+}
+
+func (c *Config) ShouldExcludeByText(text *string) bool {
+	if text == nil || c.Exclude == nil || len(*c.Exclude) == 0 {
+		return false
+	}
+	for _, pattern := range *c.Exclude {
+		re := regexp.MustCompile(pattern)
+		if re.Match([]byte(*text)) {
+			log.WithFields(log.Fields{"text": *text,"pattern":pattern}).Debug("exclude via pattern")
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Config) FindGroup(commitMessage string) *string {
+	var grouping *string
+	if c.Groupings != nil && len(*c.Groupings) > 0 {
+		title := strings.Split(commitMessage, "\n")[0]
+		for _, g := range *c.Groupings {
+			for _, pattern := range g.Patterns {
+				re := regexp.MustCompile(pattern)
+				if re.Match([]byte(title)) {
+					grouping = &g.Name
+					log.WithFields(log.Fields{"grouping":*grouping,"title":title}).Debug("found group name for commit")
+					return grouping
+				}
+			}
+		}
+	}
+	return grouping
 }
 
 // String displays a human readable representation of a Config
