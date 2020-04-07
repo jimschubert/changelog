@@ -1,6 +1,6 @@
 # GitHub Changelog Generator
 
-[![MIT License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+[![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-blue)](./LICENSE)
 ![Go Version](https://img.shields.io/github/go-mod/go-version/jimschubert/changelog)
 ![Go](https://github.com/jimschubert/changelog/workflows/Go/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jimschubert/changelog)](https://goreportcard.com/report/github.com/jimschubert/changelog)
@@ -305,3 +305,7 @@ Notice that this differs from the default in that it removes the committer name 
 ### Debugging
 
 You may debug select operations such as groupings and exclusions by exporting `LOG_LEVEL=debug`.
+
+## License
+
+This project is [licensed](./LICENSE) under Apache 2.0.
