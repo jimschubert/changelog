@@ -23,18 +23,25 @@ import (
 
 const emptyTree = "master~1"
 const defaultEnd = "master"
-const defaultTemplate = `{{define "GroupTemplate" -}}
+const defaultTemplate = `{{define "PullTemplate"}} ({{if .IsPull -}}
+{{if .PullURL}}[contributed]({{.PullURL}}){{else}}contributed{{end}} by {{end}}{{if .AuthorURL -}}
+[{{.Author}}]({{.AuthorURL}}){{else}}{{.Author}}{{end -}})
+{{- end -}}
+{{define "CommitTemplate" -}}
+{{if .CommitURL}}[{{.CommitHashShort}}]({{.CommitURL}}){{else}}{{.CommitHashShort}}{{end -}}
+{{- end -}}
+{{define "GroupTemplate" -}}
 {{- range .Grouped}}
 ### {{ .Name }}
 
 {{range .Items -}}
-* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ({{if .IsPull}}[contributed]({{.PullURL}}) by {{end}}[{{.Author}}]({{.AuthorURL}}))
+* {{template "CommitTemplate" . }} {{.Title}}{{template "PullTemplate" . }}
 {{end -}}
 {{end -}}
 {{end -}}
 {{define "FlatTemplate" -}}
 {{range .Items -}}
-* [{{.CommitHashShort}}]({{.CommitURL}}) {{.Title}} ({{if .IsPull}}[contributed]({{.PullURL}}) by {{end}}[{{.Author}}]({{.AuthorURL}}))
+* {{template "CommitTemplate" . }} {{.Title}}{{template "PullTemplate" . }}
 {{end -}}
 {{end -}}
 {{define "DefaultTemplate" -}}
@@ -86,54 +93,19 @@ func (c *Changelog) Generate(writer io.Writer) error {
 		client = github.NewClient(tc)
 	}
 
-	// dir, err := os.Getwd()
-	// if err != nil {
-	// 	log.WithFields(log.Fields{"error": err}).Fatal("Unable to determine current directory for repository.")
-	// }
-	//
-	// repo, err := git.PlainOpen(dir)
-	// if err != nil {
-	// 	log.WithFields(log.Fields{"error": err}).Fatal("Unable to open current directory as a git repository.")
-	// }
-	//
-	// fromTag, err := repo.Tag(c.From)
-	// if err != nil {
-	// 	log.WithFields(log.Fields{"error": err, "from": c.From}).Fatalf("Unable to find 'from' tag.")
-	// }
-	//
-	// toTag, err := repo.Tag(c.To)
-	// if err != nil {
-	// 	log.WithFields(log.Fields{"error": err, "to": c.To}).Fatalf("Unable to find 'to' tag.")
-	// }
-	//
-	// commitIter, err := repo.Log(&git.LogOptions{ From: fromTag.Hash()})
-	//
-	// var iterated []plumbing.Hash
-	//
-	// err = commitIter.ForEach(func(c *object.Commit) error {
-	// 	// If no previous tag is found then from and to are equal
-	// 	if fromTag.Hash() == toTag.Hash() {
-	// 		return nil
-	// 	}
-	// 	if c.Hash == toTag.Hash() {
-	// 		return nil
-	// 	}
-	// 	iterated = append(iterated, c.Hash)
-	// 	return nil
-	// })
-	//
-	// if err != nil {
-	// 	return err
-	// }
-
 	doneChan := make(chan struct{})
 	errorChan := make(chan error)
 	ciChan := make(chan *model.ChangeItem)
 
 	wg := sync.WaitGroup{}
 
-	githubService := service.NewGitHubService().WithClient(client).WithConfig(c.Config)
-	err := githubService.Process(&ctx, &wg, ciChan, c.From, c.To)
+	var target service.Store
+	if c.Config.GetPreferLocal() {
+		target = service.NewLocalGitService().WithClient(client).WithConfig(c.Config)
+	} else {
+		target = service.NewGitHubService().WithClient(client).WithConfig(c.Config)
+	}
+	err := target.Process(&ctx, &wg, ciChan, c.From, c.To)
 	if err != nil {
 		return err
 	}

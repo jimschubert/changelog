@@ -24,8 +24,10 @@ Application Options:
   -o, --owner=   GitHub Owner/Org name (required) [$GITHUB_OWNER]
   -r, --repo=    GitHub Repo name (required) [$GITHUB_REPO]
   -f, --from=    Begin changelog from this commit or tag
-  -t, --to=      End changelog at this commit or tag (default: HEAD)
+  -t, --to=      End changelog at this commit or tag (default: master)
   -c, --config=  Config file location for more advanced options beyond defaults
+  -l, --local    Prefer local commits when gathering commit logs (as opposed to querying via API)
+      --max=     The maximum number of commits to include
   -v, --version  Display version information
 
 Help Options:
@@ -179,7 +181,13 @@ More advanced scenarios require an external JSON configuration object which can 
     "^(?i)release\\s+\\d+\\.\\d+\\.\\d+",
     "^(?i)minor fix\\b",
     "^(?i)wip\\b"
-  ]
+  ],
+   
+  // Prefers local commits over API. Requires executing from within a Git repository.
+  "local": false,
+ 
+  // Processes UP TO this many commits before processing exclusion/inclusion rules. Defaults to size returned from GitHub API.
+  "max_commits": 250
 }
 ```
 
