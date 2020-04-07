@@ -17,7 +17,9 @@ package service
 import (
 	"context"
 	"errors"
+	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -66,7 +68,6 @@ func (s gitService) Process(parentContext *context.Context, wg *sync.WaitGroup, 
 	_, cancel := contextual.CreateContext(parentContext)
 	defer cancel()
 
-
 	dir, err := os.Getwd()
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Fatal("Unable to determine current directory for repository.")
@@ -88,7 +89,7 @@ func (s gitService) Process(parentContext *context.Context, wg *sync.WaitGroup, 
 		log.WithFields(log.Fields{"error": err, "to": to}).Fatalf("Unable to find 'to' tag.")
 	}
 
-	commitIter, err := repo.Log(&git.LogOptions{ From: fromTag.Hash()})
+	commitIter, err := repo.Log(&git.LogOptions{From: fromTag.Hash()})
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Fatal("Unable to retrieve commit information from git repository.")
 	}
@@ -115,7 +116,7 @@ func (s gitService) Process(parentContext *context.Context, wg *sync.WaitGroup, 
 	for _, hash := range iterated {
 		commit, err := repo.CommitObject(hash)
 		if err != nil {
-			log.WithFields(log.Fields{"commit":hash}).Fatalf("Failed while process commits.")
+			log.WithFields(log.Fields{"commit": hash}).Fatalf("Failed while process commits.")
 		}
 
 		wg.Add(1)
@@ -130,6 +131,18 @@ func (s gitService) Process(parentContext *context.Context, wg *sync.WaitGroup, 
 
 func (s *gitService) convertToChangeItem(commit *object.Commit, ch chan *model.ChangeItem, wg *sync.WaitGroup, ctx *context.Context) {
 	defer wg.Done()
+
+	// URL creation is duplicated with GetGitURLs, this could be moved elsewhere to reduce duplication
+	gh := "https://github.com"
+	if s.config.Enterprise != nil {
+		gh = strings.TrimRight(*s.config.Enterprise, "/api")
+	}
+	u, _ := url.Parse(gh)
+	createCommitLocation := func(hash string) string {
+		u.Path = path.Join(u.Path, s.config.Owner, s.config.Repo, "commit", hash)
+		return u.String()
+	}
+
 	var isMergeCommit = commit.NumParents() > 1
 	if !isMergeCommit {
 		if !s.shouldExcludeViaRepositoryCommit(commit) {
@@ -140,12 +153,13 @@ func (s *gitService) convertToChangeItem(commit *object.Commit, ch chan *model.C
 
 			if !excludeByGroup {
 				hash := commit.Hash.String()
+				commitLocation := createCommitLocation(hash)
 				ci := &model.ChangeItem{
-					AuthorRaw:        &commit.Committer.Name,
+					AuthorRaw:        &commit.Author.Name,
 					CommitMessageRaw: &commit.Message,
 					DateRaw:          t,
 					CommitHashRaw:    &hash,
-					// CommitURLRaw:     commit.HTMLURL,
+					CommitURLRaw:     &commitLocation,
 					GroupRaw:         grouping,
 				}
 
@@ -158,7 +172,12 @@ func (s *gitService) convertToChangeItem(commit *object.Commit, ch chan *model.C
 					} else {
 						pr, _ := strconv.Atoi(pullId)
 						contextual := s.contextual
-						if !shouldExcludeViaPullAttributes(pr, contextual, ctx, s.config) {
+						pullRequest, exclude := shouldExcludeViaPullAttributes(pr, contextual, ctx, s.config)
+						if !exclude {
+							ci.PullURLRaw = pullRequest.HTMLURL
+							ci.AuthorURLRaw = pullRequest.GetUser().HTMLURL
+							ci.AuthorRaw = pullRequest.GetUser().Login
+
 							ch <- ci
 						}
 					}

@@ -124,7 +124,8 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 					} else {
 						pr, _ := strconv.Atoi(pullId)
 						contextual := s.contextual
-						if !shouldExcludeViaPullAttributes(pr, contextual, ctx, s.config) {
+						_, exclude := shouldExcludeViaPullAttributes(pr, contextual, ctx, s.config)
+						if !exclude {
 							ch <- ci
 						}
 					}

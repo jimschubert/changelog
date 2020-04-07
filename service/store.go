@@ -66,7 +66,7 @@ func applyPullPropertiesChangeItem(ci *model.ChangeItem) {
 	}
 }
 
-func shouldExcludeViaPullAttributes(pullId int, contextual *Contextual, parent *context.Context, c *model.Config) bool {
+func shouldExcludeViaPullAttributes(pullId int, contextual *Contextual, parent *context.Context, c *model.Config) (*github.PullRequest, bool) {
 	client := contextual.GetClient()
 	timeout, cancel := contextual.CreateContext(parent)
 	defer cancel()
@@ -74,15 +74,15 @@ func shouldExcludeViaPullAttributes(pullId int, contextual *Contextual, parent *
 	log.Debugf("Checking pull request %d", pullId)
 	pr, _, e := client.PullRequests.Get(timeout, (*c).Owner, (*c).Repo, pullId)
 	if e != nil || pr == nil {
-		return false
+		return nil, false
 	}
 	if c.ShouldExcludeByText(pr.Title) {
-		return true
+		return pr, true
 	}
 	for _, label := range pr.Labels {
 		if c.ShouldExcludeByText(label.Name) {
-			return true
+			return pr, true
 		}
 	}
-	return false
+	return pr, false
 }
