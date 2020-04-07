@@ -1,4 +1,4 @@
-module changelog
+module github.com/jimschubert/changelog
 
 go 1.14
 

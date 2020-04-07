@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-github/v29/github"
 	log "github.com/sirupsen/logrus"
 
-	"changelog/model"
+	"github.com/jimschubert/changelog/model"
 )
 
 // Store defines the functional interface for accessing a store of Git commits

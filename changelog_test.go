@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/go-github/v29/github"
 
-	"changelog/model"
+	"github.com/jimschubert/changelog/model"
 )
 
 func commits(items ...model.ChangeItem) *[]model.ChangeItem {

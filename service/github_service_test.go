@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/go-github/v29/github"
 
-	"changelog/model"
+	"github.com/jimschubert/changelog/model"
 )
 
 func Test_githubService_shouldExcludeViaRepositoryCommit(t *testing.T) {

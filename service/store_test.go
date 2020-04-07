@@ -17,7 +17,7 @@ package service
 import (
 	"testing"
 
-	"changelog/model"
+	"github.com/jimschubert/changelog/model"
 )
 
 func Test_applyPullPropertiesChangeItem(t *testing.T) {

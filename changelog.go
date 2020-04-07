@@ -17,8 +17,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"changelog/model"
-	"changelog/service"
+	"github.com/jimschubert/changelog/model"
+	"github.com/jimschubert/changelog/service"
 )
 
 const emptyTree = "master~1"

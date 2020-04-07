@@ -22,8 +22,8 @@ import (
 	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 
-	"changelog"
-	"changelog/model"
+	"github.com/jimschubert/changelog"
+	"github.com/jimschubert/changelog/model"
 )
 
 var version = ""
