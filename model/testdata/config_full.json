@@ -18,5 +18,7 @@
   ],
   "enterprise": "https://ghe.example.com",
   "template": "/path/to/template",
-  "sort": "asc"
+  "sort": "asc",
+  "local": true,
+  "max_commits": 150
 }

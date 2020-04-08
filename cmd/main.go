@@ -78,7 +78,11 @@ func main() {
 
 	config := model.LoadOrNewConfig(opts.Config, opts.Owner, opts.Repo)
 	config.MaxCommits = opts.MaxCommits
-	config.PreferLocal = opts.Local
+	if opts.Local != nil {
+		config.PreferLocal = opts.Local
+	}
+
+	log.WithFields(log.Fields{"config": config}).Debug("Loaded config.")
 
 	changes := changelog.Changelog{
 		Config: config,

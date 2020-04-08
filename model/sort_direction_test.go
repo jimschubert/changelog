@@ -109,3 +109,32 @@ func TestSortDirection_UnmarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestSortDirection_UnmarshalYAML(t *testing.T) {
+	type args struct {
+		b []byte
+	}
+	tests := []struct {
+		name    string
+		s       SortDirection
+		args    args
+		wantErr bool
+	}{
+		{"unmarshal asc", Ascending, args{b: []byte(`asc`)}, false},
+		{"unmarshal ASC", Ascending, args{b: []byte(`ASC`)}, false},
+		{"unmarshal ascending", Ascending, args{b: []byte(`ascending`)}, false},
+
+		{"unmarshal desc", Descending, args{b: []byte(`desc`)}, false},
+		{"unmarshal DESC", Descending, args{b: []byte(`DESC`)}, false},
+		{"unmarshal descending", Descending, args{b: []byte(`descending`)}, false},
+
+		{"unmarshal unknown to descending", Descending, args{b: []byte(`unk`)}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.s.UnmarshalYAML(tt.args.b); (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

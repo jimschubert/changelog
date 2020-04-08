@@ -48,14 +48,22 @@ func (s *SortDirection) UnmarshalJSON(b []byte) error {
 	}
 	it := string(b)
 	switch it {
-	case `"asc"`, `"ascending"`, `"ASC"`:
+	case `asc`, `ascending`, `ASC`, `"asc"`, `"ascending"`, `"ASC"`:
 		*s = Ascending
-	case `"desc"`, `"descending"`, `"DESC"`:
+	case `desc`, `descending`, `DESC`, `"desc"`, `"descending"`, `"DESC"`:
 		fallthrough
 	default:
 		*s = Descending
 	}
 	return nil
+}
+
+func (s *SortDirection) UnmarshalYAML(b []byte) error {
+	return s.UnmarshalJSON(b)
+}
+
+func (s *SortDirection) MarshalYAML() ([]byte, error) {
+	return s.MarshalJSON()
 }
 
 // String displays a human readable representation of the SortDirection values

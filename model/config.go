@@ -23,8 +23,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 )
 
 // Grouping allows assigning a grouping name with a set of regex patterns or texts.
@@ -40,7 +40,7 @@ type Grouping struct {
 // Config provides a user with more robust options for Changelog configuration
 type Config struct {
 	// Defines whether we resolve commits only or query additional information from pull requests
-	ResolveType *ResolveType `json:"resolve"`
+	ResolveType *ResolveType `json:"resolve" yaml:"resolve"`
 
 	// The Owner (user or org) of the target repository
 	Owner string `json:"owner"`
@@ -50,28 +50,28 @@ type Config struct {
 
 	// A set of Grouping objects which allow to define groupings for changelog output.
 	// Commits are associated with the first matching group.
-	Groupings *[]Grouping `json:"groupings"`
+	Groupings *[]Grouping `json:"groupings,omitempty"`
 
 	// As set of square-bracket regex patterns, wrapped texts and/or labels to be excluded from output.
 	// If the commit message or pr labels reference any text in this Exclude set, that commit
 	// will be ignored./**/
-	Exclude *[]string `json:"exclude"`
+	Exclude *[]string `json:"exclude,omitempty"`
 
 	// Optional base url when targeting GitHub Enterprise
-	Enterprise *string `json:"enterprise"`
+	Enterprise *string `json:"enterprise,omitempty"`
 
 	// Custom template following Go text/template syntax
 	// For more details, see https://golang.org/pkg/text/template/
-	Template *string `json:"template"`
+	Template *string `json:"template,omitempty"`
 
 	// SortDirection defines the order of commits within the changelog
 	SortDirection *SortDirection `json:"sort"`
 
 	// PreferLocal defines whether commits may be queried locally. Requires executing from within a Git repository.
-	PreferLocal *bool `json:"local"`
+	PreferLocal *bool `json:"local,omitempty"`
 
 	// MaxCommits defines the maximum number of commits to be processed.
-	MaxCommits *int `json:"max_commits"`
+	MaxCommits *int `json:"max_commits,omitempty"`
 }
 
 // Load a Config from path
@@ -120,7 +120,7 @@ func (c *Config) ShouldExcludeByText(text *string) bool {
 	for _, pattern := range *c.Exclude {
 		re := regexp.MustCompile(pattern)
 		if re.Match([]byte(*text)) {
-			log.WithFields(log.Fields{"text": *text,"pattern":pattern}).Debug("exclude via pattern")
+			log.WithFields(log.Fields{"text": *text, "pattern": pattern}).Debug("exclude via pattern")
 			return true
 		}
 	}
@@ -136,7 +136,7 @@ func (c *Config) FindGroup(commitMessage string) *string {
 				re := regexp.MustCompile(pattern)
 				if re.Match([]byte(title)) {
 					grouping = &g.Name
-					log.WithFields(log.Fields{"grouping":*grouping,"title":title}).Debug("found group name for commit")
+					log.WithFields(log.Fields{"grouping": *grouping, "title": title}).Debug("found group name for commit")
 					return grouping
 				}
 			}
@@ -177,7 +177,7 @@ func LoadOrNewConfig(path *string, owner string, repo string) *Config {
 	defaultSortDirection := Descending
 	config := Config{
 		SortDirection: &defaultSortDirection,
-		ResolveType: &defaultResolveType,
+		ResolveType:   &defaultResolveType,
 	}
 	if path != nil {
 		err := config.Load(*path)

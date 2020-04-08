@@ -5,12 +5,14 @@ owner: jimschubert
 repo: ossify
 groupings:
   - name: feature
-    patterns: []
+    patterns: ['^a','\bb$']
   - name: bug
-    patterns: []
+    patterns: ['cba','\b\[f\]\b']
 exclude:
   - wip
   - help wanted
 enterprise: 'https://ghe.example.com'
 template: /path/to/template
 sort: asc
+max_commits: 199
+local: true

@@ -53,14 +53,22 @@ func (r *ResolveType) UnmarshalJSON(b []byte) error {
 
 	s := string(b)
 	switch s {
-	case `"commits"`:
+	case "commits", `"commits"`:
 		*r = Commits
-	case `"pulls"`, `"pullrequest"`, `"prs"`:
+	case "pulls", "pullrequest", "prs", `"pulls"`, `"pullrequest"`, `"prs"`:
 		*r = PullRequests
 	default:
 		return fmt.Errorf("unknown resolve type %q", s)
 	}
 	return nil
+}
+
+func (r *ResolveType) UnmarshalYAML(b []byte) error {
+	return r.UnmarshalJSON(b)
+}
+
+func (r *ResolveType) MarshalYAML() ([]byte, error) {
+	return r.MarshalJSON()
 }
 
 // String displays a human readable representation of the ResolveType values

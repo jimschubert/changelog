@@ -111,3 +111,31 @@ func TestResolveType_MarshalJSON1(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveType_UnmarshalYAML(t *testing.T) {
+	type args struct {
+		b []byte
+	}
+	tests := []struct {
+		name    string
+		r       ResolveType
+		args    args
+		wantErr bool
+	}{
+		{"unmarshal commits", Commits, args{b: []byte("commits")}, false},
+		{"unmarshal prs", PullRequests, args{b: []byte("prs")}, false},
+		{"unmarshal pulls", PullRequests, args{b: []byte("pulls")}, false},
+		{"unmarshal pullrequest", PullRequests, args{b: []byte("pullrequest")}, false},
+		{"unmarshal commits (bad single character)", Commits, args{b: []byte("\"a\"")}, true},
+		{"unmarshal prs (bad single character)", PullRequests, args{b: []byte("\"1\"")}, true},
+		{"unmarshal prs (bad empty character)", PullRequests, args{b: []byte("")}, true},
+		{"unmarshal prs (nil for null terminating character)", PullRequests, args{b: []byte("\x00")}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.r.UnmarshalYAML(tt.args.b); (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

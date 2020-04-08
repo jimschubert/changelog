@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v29/github"
+	"github.com/stretchr/testify/assert"
 )
 
 func hash(s string) uint32 {
@@ -66,6 +67,8 @@ func groupings(g ...Grouping) *[]Grouping {
 }
 
 func TestConfig_Load(t *testing.T) {
+	bt := true
+	pint := func(i int) *int { return &i }
 	type fields struct {
 		JSONData      string
 		ResolveType   *ResolveType
@@ -77,6 +80,8 @@ func TestConfig_Load(t *testing.T) {
 		Template      *string
 		SortDirection *SortDirection
 		TempFileExt   *string
+		PreferLocal   *bool
+		MaxCommits    *int
 	}
 	tests := []struct {
 		name    string
@@ -85,32 +90,30 @@ func TestConfig_Load(t *testing.T) {
 	}{
 		{"Loads valid empty json", fields{JSONData: "{}"}, false},
 		{"Loads valid json resolve-only", fields{JSONData: `{"resolve": "commits"}`, ResolveType: Commits.Ptr()}, false},
-		{"Fail on valid json with invalid data type resolve-only", fields{JSONData: `{"resolve": 1.0}`}, true}, // note that 1 would resolve since enum is an int
+		{"Fail on valid json with invalid data type resolve-only", fields{JSONData: `{"resolve": 1.0}`, ResolveType: ResolveType(0).Ptr()}, true}, // note that 1 would resolve since enum is an int
 		{"Loads valid json owner-only", fields{JSONData: `{"owner": "jimschubert"}`, Owner: "jimschubert"}, false},
 		{"Fail on valid json with invalid data type owner-only", fields{JSONData: `{"owner": []}`}, true},
-		{"Loads valid json repo-only", fields{JSONData: `{"repo": "changelog"}`, Owner: "changelog"}, false},
+		{"Loads valid json repo-only", fields{JSONData: `{"repo": "changelog"}`, Repo: "changelog"}, false},
 		{"Fail on valid json with invalid data type repo-only", fields{JSONData: `{"repo": []}`}, true},
-		{"Loads valid json groupings-only", fields{JSONData: `{"groupings": []}`, Groupings: groupings(Grouping { Name: "g", Patterns: make([]string, 0)})}, false},
-		{"Fail on valid json with invalid data type groupings-only", fields{JSONData: `{"groupings": 4}`}, true},
+		{"Loads valid json groupings-only", fields{JSONData: `{"groupings":[{"name":"g","patterns":[]}]}`, Groupings: groupings(Grouping{Name: "g", Patterns: make([]string, 0)})}, false},
 		{"Loads valid json exclude-only", fields{JSONData: `{"exclude": []}`, Exclude: ptrStringArray()}, false},
-		{"Fail on valid json with invalid data type exclude-only", fields{JSONData: `{"exclude": 1}`}, true},
 		{"Loads valid json enterprise-only", fields{JSONData: `{"enterprise": "https://ghe.example.com"}`, Enterprise: p("https://ghe.example.com")}, false},
-		{"Fail on valid json with invalid data type enterprise-only", fields{JSONData: `{"enterprise": 0}`}, true},
 		{"Loads valid json template-only", fields{JSONData: `{"template": "/path/to/template"}`, Template: p("/path/to/template")}, false},
 		{"Loads valid json ascending sort-only", fields{JSONData: `{"sort": "asc"}`, SortDirection: Ascending.Ptr()}, false},
 		{"Loads valid json descending sort-only", fields{JSONData: `{"sort": "desc"}`, SortDirection: Descending.Ptr()}, false},
-		{"Fail on valid json with invalid data type template-only", fields{JSONData: `{"template": []}`}, true},
 		{"Loads valid config_full.json",
 			fields{
 				JSONData:      string(helperTestData(t, "config_full.json")),
 				ResolveType:   Commits.Ptr(),
 				Owner:         "jimschubert",
 				Repo:          "ossify",
-				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{} }),
+				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{}}),
 				Exclude:       ptrStringArray("wip", "help wanted"),
 				Enterprise:    p("https://ghe.example.com"),
 				Template:      p("/path/to/template"),
 				SortDirection: Ascending.Ptr(),
+				PreferLocal:   &bt,
+				MaxCommits:    pint(150),
 			}, false},
 		{"Loads valid config_full.yaml",
 			fields{
@@ -118,12 +121,14 @@ func TestConfig_Load(t *testing.T) {
 				ResolveType:   Commits.Ptr(),
 				Owner:         "jimschubert",
 				Repo:          "ossify",
-				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{} }),
+				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{"^a", "\\bb$"}}, Grouping{Name: "bug", Patterns: []string{"cba", "\\b\\[f\\]\\b"}}),
 				Exclude:       ptrStringArray("wip", "help wanted"),
 				Enterprise:    p("https://ghe.example.com"),
 				Template:      p("/path/to/template"),
 				SortDirection: Ascending.Ptr(),
-				TempFileExt  : p("yaml"),
+				TempFileExt:   p("yaml"),
+				PreferLocal:   &bt,
+				MaxCommits:    pint(199),
 			}, false},
 		{"Fails on invalid json",
 			fields{
@@ -140,20 +145,28 @@ func TestConfig_Load(t *testing.T) {
 			}
 			jsonLocation, cleanup := createTempConfig(t, tt.fields.JSONData, tmpExt)
 			defer cleanup()
-			t.Run(tt.name, func(t *testing.T) {
-				c := &Config{
-					ResolveType: tt.fields.ResolveType,
-					Owner:       tt.fields.Owner,
-					Repo:        tt.fields.Repo,
-					Groupings:   tt.fields.Groupings,
-					Exclude:     tt.fields.Exclude,
-					Enterprise:  tt.fields.Enterprise,
-					Template:    tt.fields.Template,
+
+			c := &Config{}
+			err := c.Load(jsonLocation)
+			if tt.wantErr {
+				assert.Error(t, err, "Load() error = %v, wantErr %v", err, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+
+				if tt.fields.ResolveType == nil {
+					assert.Nil(t, c.ResolveType)
+				} else {
+					assert.Equal(t, tt.fields.ResolveType, c.ResolveType)
 				}
-				if err := c.Load(jsonLocation); (err != nil) != tt.wantErr {
-					t.Errorf("Load() error = %v, wantErr %v", err, tt.wantErr)
-				}
-			})
+				assert.Equal(t, tt.fields.Owner, c.Owner)
+				assert.Equal(t, tt.fields.Repo, c.Repo)
+				assert.Equal(t, tt.fields.Groupings, c.Groupings)
+				assert.Equal(t, tt.fields.Exclude, c.Exclude)
+				assert.Equal(t, tt.fields.Enterprise, c.Enterprise)
+				assert.Equal(t, tt.fields.Template, c.Template)
+				assert.Equal(t, tt.fields.PreferLocal, c.PreferLocal)
+				assert.Equal(t, tt.fields.MaxCommits, c.MaxCommits)
+			}
 		})
 	}
 }
@@ -179,7 +192,7 @@ func TestConfig_String(t *testing.T) {
 				ResolveType:   Commits.Ptr(),
 				Owner:         "jimschubert",
 				Repo:          "ossify",
-				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{} }),
+				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{}}),
 				Exclude:       ptrStringArray("wip", "help wanted"),
 				Enterprise:    p("https://ghe.example.com"),
 				Template:      p("/path/to/template"),
