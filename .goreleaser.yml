@@ -75,3 +75,18 @@ dockers:
       - "--label=org.opencontainers.image.name={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
+
+brews:
+  - tap:
+      owner: jimschubert
+      name: homebrew-tap
+    folder: Formula
+    homepage:  https://github.com/jimschubert/changelog
+    description: A changelog generator which uses GitHub's API for the details
+    license: Apache 2.0
+    test: |
+      system "#{bin}/changelog -v"
+    dependencies:
+      - name: go
+    install: |-
+      bin.install "changelog"
