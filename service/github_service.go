@@ -95,8 +95,16 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 		if !s.shouldExcludeViaRepositoryCommit(commit) {
 			excludeByGroup := false
 			var t *time.Time
-			if commit.GetCommit() != nil && (*commit.GetCommit()).GetAuthor() != nil && (*(*commit.GetCommit()).GetAuthor()).Date != nil {
-				t = (*(*commit.GetCommit()).GetAuthor()).Date
+			var authorRaw *string
+			var authorUrlRaw *string
+			if commit.GetCommit() != nil {
+				commitAuthor := *(*commit.GetCommit()).Author
+				d := commitAuthor.GetDate()
+				t = &d
+			}
+			if commit.Author != nil {
+				authorRaw = commit.Author.Login
+				authorUrlRaw = commit.Author.HTMLURL
 			}
 
 			grouping := (*s.config).FindGroup(commit.GetCommit().GetMessage())
@@ -105,8 +113,8 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 			if !excludeByGroup {
 				// TODO: Max count?
 				ci := &model.ChangeItem{
-					AuthorRaw:        commit.Author.Login,
-					AuthorURLRaw:     commit.Author.HTMLURL,
+					AuthorRaw:        authorRaw,
+					AuthorURLRaw:     authorUrlRaw,
 					CommitMessageRaw: commit.Commit.Message,
 					DateRaw:          t,
 					CommitHashRaw:    commit.SHA,
