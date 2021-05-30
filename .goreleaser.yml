@@ -64,9 +64,9 @@ dockers:
     goarch: 386
 
     image_templates:
-      - "docker.pkg.github.com/jimschubert/changelog/changelog:latest"
-      - "docker.pkg.github.com/jimschubert/changelog/changelog:{{ .Tag }}"
-      - "docker.pkg.github.com/jimschubert/changelog/changelog:v{{ .Major }}"
+      - "jimschubert/{{ .ProjectName }}:latest"
+      - "jimschubert/{{ .ProjectName }}:{{ .Tag }}"
+      - "jimschubert/{{ .ProjectName }}:v{{ .Major }}"
 
     dockerfile: release.Dockerfile
 
