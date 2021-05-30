@@ -182,10 +182,10 @@ func LoadOrNewConfig(path *string, owner string, repo string) *Config {
 	if path != nil {
 		err := config.Load(*path)
 		if err == nil {
-			if config.Owner == "" || strings.Compare(owner, config.Owner) != 0 {
+			if config.Owner == "" || (strings.Compare(owner, config.Owner) != 0 && owner != ""){
 				config.Owner = owner
 			}
-			if config.Repo == "" || strings.Compare(repo, config.Repo) != 0 {
+			if config.Repo == "" || (strings.Compare(repo, config.Repo) != 0 && repo != "") {
 				config.Repo = repo
 			}
 			if config.ResolveType == nil {

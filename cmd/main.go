@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -31,10 +32,10 @@ var date = ""
 var commit = ""
 var projectName = ""
 
-var opts struct {
-	Owner string `short:"o" long:"owner" description:"GitHub Owner/Org name (required)" required:"true" env:"GITHUB_OWNER"`
+type Options struct {
+	Owner string `short:"o" long:"owner" description:"GitHub Owner/Org name" env:"GITHUB_OWNER" default:""`
 
-	Repo string `short:"r" long:"repo" description:"GitHub Repo name (required)" required:"true" env:"GITHUB_REPO"`
+	Repo string `short:"r" long:"repo" description:"GitHub Repo name" env:"GITHUB_REPO" default:""`
 
 	From string `short:"f" long:"from" description:"Begin changelog from this commit or tag"`
 
@@ -51,23 +52,16 @@ var opts struct {
 
 const parseArgs = flags.HelpFlag | flags.PassDoubleDash
 
+var opts Options
+var parser = flags.NewParser(&opts, parseArgs)
+var commandCompleted = errors.New("completed")
+var commandError = errors.New("command failed")
+
 func main() {
 	parser := flags.NewParser(&opts, parseArgs)
+	parser.SubcommandsOptional = true
 	_, err := parser.Parse()
-	if err != nil {
-		flagError := err.(*flags.Error)
-		if flagError.Type == flags.ErrHelp {
-			parser.WriteHelp(os.Stdout)
-			return
-		}
-
-		if flagError.Type == flags.ErrUnknownFlag {
-			_, _ = fmt.Fprintf(os.Stderr, "%s. Please use --help for available options.\n", strings.Replace(flagError.Message, "unknown", "Unknown", 1))
-			return
-		}
-		_, _ = fmt.Fprintf(os.Stderr, "Error parsing command line options: %s\n", err)
-		return
-	}
+	handleError(err)
 
 	if opts.Version {
 		fmt.Printf("%s %s (%s)\n", projectName, version, commit)
@@ -77,6 +71,9 @@ func main() {
 	initLogging()
 
 	config := model.LoadOrNewConfig(opts.Config, opts.Owner, opts.Repo)
+	err = validateConfig(config)
+	handleError(err)
+
 	config.MaxCommits = opts.MaxCommits
 	if opts.Local != nil {
 		config.PreferLocal = opts.Local
@@ -91,8 +88,52 @@ func main() {
 	}
 
 	err = changes.Generate(os.Stdout)
+	handleError(err)
+}
+
+func validateConfig(opts *model.Config) error {
+	var required []string
+
+	// owner/repo are only required if config is empty
+	// if they're empty by this point, nag user about CLI opts (regardless of whether they've used a config file)
+	if opts.Owner == "" {
+		required = append(required, "'-o, --owner'")
+	}
+	if opts.Repo == "" {
+		required = append(required, "'-r, --repo'")
+	}
+
+	if len(required) > 0 {
+		msg := fmt.Sprintf("the required arguments %s and %s were not provided",
+			strings.Join(required[:len(required)-1], ", "), required[len(required)-1])
+		return &flags.Error{ Type: flags.ErrRequired, Message: msg }
+	}
+
+	return nil
+}
+
+func handleError(err error) {
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stdout, "generation failed: %s", err)
+		if errors.Is(err, commandCompleted) {
+			os.Exit(0)
+		}
+
+		if flagError, ok := err.(*flags.Error); ok {
+			if flagError.Type == flags.ErrHelp {
+				parser.WriteHelp(os.Stdout)
+				os.Exit(0)
+			}
+
+			if flagError.Type == flags.ErrUnknownFlag {
+				_, _ = fmt.Fprintf(os.Stderr, "%s. Please use --help for available options.\n", strings.Replace(flagError.Message, "unknown", "Unknown", 1))
+				os.Exit(1)
+			}
+			_, _ = fmt.Fprintf(os.Stderr, "Error parsing command line options: %s\n", err)
+		} else {
+			_, _ = fmt.Fprintf(os.Stdout, "generation failed: %s", err)
+		}
+
+		os.Exit(1)
 	}
 }
 
