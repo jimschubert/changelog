@@ -135,6 +135,8 @@ You must define an external JSON configuration file to override the default temp
 
 Latest binary releases are available via [GitHub Releases](https://github.com/jimschubert/changelog/releases).
 
+### Docker
+
 The preferred way to run changelog is via Docker. For example:
 
 ```bash
@@ -143,6 +145,13 @@ docker run -e GITHUB_TOKEN=yourtoken \
            -e GITHUB_OWNER=jimschubert \
            -e GITHUB_REPO=changelog \
    jimschubert/changelog:latest -f v0.1 -t v0.2 >> CHANGELOG.md
+```
+
+### Homebrew
+
+```
+brew tap jimschubert/tap
+brew install changelog
 ```
 
 ## Advanced
