@@ -17,6 +17,7 @@ package service
 import (
 	"context"
 	"errors"
+	"io"
 	"net/url"
 	"os"
 	"path"
@@ -25,15 +26,12 @@ import (
 	"sync"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/google/go-github/v29/github"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jimschubert/changelog/model"
 )
-
-var foundError = errors.New("found")
 
 type gitService struct {
 	contextual *Contextual
@@ -59,6 +57,7 @@ func (s gitService) GetContextual() *Contextual {
 	return s.contextual
 }
 
+//goland:noinspection ALL
 func (s gitService) Process(parentContext *context.Context, wg *sync.WaitGroup, ciChan chan *model.ChangeItem, from string, to string) error {
 	wg.Add(1)
 	defer wg.Done()
@@ -85,47 +84,37 @@ func (s gitService) Process(parentContext *context.Context, wg *sync.WaitGroup, 
 	}
 
 	toTag, err := repo.Tag(to)
-	if err != nil {
+	if toTag == nil || err != nil {
 		log.WithFields(log.Fields{"error": err, "to": to}).Fatalf("Unable to find 'to' tag.")
 	}
 
-	commitIter, err := repo.Log(&git.LogOptions{From: fromTag.Hash()})
+	startCommit, err := repo.CommitObject(toTag.Hash())
 	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Fatal("Unable to retrieve commit information from git repository.")
-	}
-
-	var iterated []plumbing.Hash
-
-	//noinspection GoNilness
-	err = commitIter.ForEach(func(c *object.Commit) error {
-		// If no previous tag is found then from and to are equal
-		if fromTag.Hash() == toTag.Hash() {
-			return nil
-		}
-		if c.Hash == toTag.Hash() {
-			return foundError
-		}
-		iterated = append(iterated, c.Hash)
-		return nil
-	})
-
-	if err != nil && err != foundError {
 		return err
 	}
 
-	for _, hash := range iterated {
-		commit, err := repo.CommitObject(hash)
-		if err != nil {
-			log.WithFields(log.Fields{"commit": hash}).Fatalf("Failed while process commits.")
+	// NewCommitIterBSF returns a CommitIter that walks the commit history,
+	// starting at the given commit and visiting its parents in pre-order.
+	err = object.NewCommitIterBSF(startCommit, nil, nil).ForEach(func(commit *object.Commit) error {
+		if commit.Hash == fromTag.Hash() {
+			return io.EOF
 		}
-
 		wg.Add(1)
 		go func(commit *object.Commit) {
 			newContext, newCancel := contextual.CreateContext(parentContext)
 			defer newCancel()
 			s.convertToChangeItem(commit, ciChan, wg, &newContext)
 		}(commit)
+		return nil
+	})
+
+	if err != nil && !errors.Is(err, io.EOF){
+		log.WithFields(log.Fields{
+			"from": fromTag.Hash().String(),
+			"to": toTag.Hash().String(),
+		}).Fatalf("Failed while processing commits.")
 	}
+
 	return nil
 }
 
