@@ -8,7 +8,7 @@ jobs:
     steps:
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           # Version here has to match one returned via https://golang.org/dl/?mode=json&include=all
           go-version: '1.14'
