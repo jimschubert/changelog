@@ -50,6 +50,6 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         if: success()
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: release --clean
