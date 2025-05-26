@@ -32,10 +32,6 @@ jobs:
           go-version-file: go.mod
         id: go
 
-      - name: Unshallow
-        if: success() && startsWith(github.ref, 'refs/tags/v')
-        run: git fetch --prune --unshallow
-
       - name: Build and Test
         run: go test -v -race -cover ./...
 
