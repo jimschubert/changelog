@@ -1,5 +1,6 @@
 # This is an example goreleaser.yaml file with some sane defaults.
 # Make sure to check the documentation at http://goreleaser.com
+version: 2
 before:
   hooks:
     # You may remove this if you don't use go modules.
@@ -19,37 +20,37 @@ builds:
       - windows
     goarch:
       - amd64
-      - 386
+      - '386'
       - arm
       - arm64
     ignore:
       - goos: darwin
-        goarch: 386
+        goarch: '386'
       - goos: windows
-        goarch: 386
+        goarch: '386'
     # Path to main.go file or main package.
     # Default is `.`.
     main: ./cmd/main.go
 archives:
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
 
-    format: tar.gz
+    formats: [ tar.gz ]
 
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ zip ]
     files:
       - LICENSE
       - README.md
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  version_template: "{{ .Tag }}-next"
 changelog:
   sort: desc
   filters:
@@ -58,29 +59,12 @@ changelog:
       - '^\[doc[s]?\]'
       - '^wip:'
       - '^WIP:'
-dockers:
-  -
-    goos: linux
-    goarch: 386
-
-    image_templates:
-      - "jimschubert/{{ .ProjectName }}:latest"
-      - "jimschubert/{{ .ProjectName }}:{{ .Tag }}"
-      - "jimschubert/{{ .ProjectName }}:v{{ .Major }}"
-
-    dockerfile: release.Dockerfile
-
-    build_flag_templates:
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
 
 brews:
-  - tap:
+  - repository:
       owner: jimschubert
       name: homebrew-tap
-    folder: Formula
+    directory: Formula
     homepage:  https://github.com/jimschubert/changelog
     description: A changelog generator which uses GitHub's API for the details
     license: Apache 2.0

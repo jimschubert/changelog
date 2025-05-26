@@ -14,7 +14,10 @@
 
 package model
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // ResolveType is a type alias representing the enumeration of options
 // which configure how commits are processed (if commit only or if we lookup any available pull request info)
@@ -51,7 +54,7 @@ func (r *ResolveType) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	s := string(b)
+	s := strings.TrimSpace(string(b))
 	switch s {
 	case "commits", `"commits"`:
 		*r = Commits

@@ -28,6 +28,8 @@ import (
 )
 
 var version = ""
+
+//nolint:unused
 var date = ""
 var commit = ""
 var projectName = ""
@@ -55,6 +57,8 @@ const parseArgs = flags.HelpFlag | flags.PassDoubleDash
 var opts Options
 var parser = flags.NewParser(&opts, parseArgs)
 var commandCompleted = errors.New("completed")
+
+//nolint:unused
 var commandError = errors.New("command failed")
 
 func main() {
@@ -106,7 +110,7 @@ func validateConfig(opts *model.Config) error {
 	if len(required) > 0 {
 		msg := fmt.Sprintf("the required arguments %s and %s were not provided",
 			strings.Join(required[:len(required)-1], ", "), required[len(required)-1])
-		return &flags.Error{ Type: flags.ErrRequired, Message: msg }
+		return &flags.Error{Type: flags.ErrRequired, Message: msg}
 	}
 
 	return nil
