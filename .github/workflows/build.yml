@@ -27,7 +27,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
 
       - name: Build and Test
         run: go test -v -race -cover ./...
