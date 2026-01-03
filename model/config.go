@@ -168,7 +168,7 @@ func (c *Config) String() string {
 		buffer.WriteString((*c.SortDirection).String())
 	}
 	buffer.WriteString(" }")
-	return fmt.Sprintf(buffer.String())
+	return buffer.String()
 }
 
 // LoadOrNewConfig will attempt to load path, otherwise returns a newly constructed config.
@@ -182,7 +182,7 @@ func LoadOrNewConfig(path *string, owner string, repo string) *Config {
 	if path != nil {
 		err := config.Load(*path)
 		if err == nil {
-			if config.Owner == "" || (strings.Compare(owner, config.Owner) != 0 && owner != ""){
+			if config.Owner == "" || (strings.Compare(owner, config.Owner) != 0 && owner != "") {
 				config.Owner = owner
 			}
 			if config.Repo == "" || (strings.Compare(repo, config.Repo) != 0 && repo != "") {
