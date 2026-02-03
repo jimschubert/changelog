@@ -3,10 +3,10 @@ module github.com/jimschubert/changelog
 go 1.25
 
 require (
+	github.com/alecthomas/kong v1.13.0
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-github/v29 v29.0.3
-	github.com/jessevdk/go-flags v1.6.1
 	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.34.0

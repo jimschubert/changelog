@@ -15,68 +15,59 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/jessevdk/go-flags"
+	"github.com/alecthomas/kong"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jimschubert/changelog"
 	"github.com/jimschubert/changelog/model"
 )
 
-var version = ""
-
 //nolint:unused
-var date = ""
-var commit = ""
-var projectName = ""
+var (
+	version     = "dev"
+	commit      = "unknown"
+	date        = ""
+	projectName = "changelog"
+)
 
 type Options struct {
-	Owner string `short:"o" long:"owner" description:"GitHub Owner/Org name" env:"GITHUB_OWNER" default:""`
+	Owner string `short:"o" help:"GitHub Owner/Org name" env:"GITHUB_OWNER" default:""`
 
-	Repo string `short:"r" long:"repo" description:"GitHub Repo name" env:"GITHUB_REPO" default:""`
+	Repo string `short:"r" help:"GitHub Repo name" env:"GITHUB_REPO" default:""`
 
-	From string `short:"f" long:"from" description:"Begin changelog from this commit or tag"`
+	From string `short:"f" help:"Begin changelog from this commit or tag"`
 
-	To string `short:"t" long:"to" description:"End changelog at this commit or tag" default:"master"`
+	To string `short:"t" help:"End changelog at this commit or tag" default:"master"`
 
-	Config *string `short:"c" long:"config" description:"Config file location for more advanced options beyond defaults"`
+	Config *string `short:"c" help:"Config file location for more advanced options beyond defaults"`
 
-	Local *bool `short:"l" long:"local" description:"Prefer local commits when gathering commit logs (as opposed to querying via API)"`
+	Local *bool `short:"l" help:"Prefer local commits when gathering commit logs (as opposed to querying via API)"`
 
-	MaxCommits *int `long:"max" description:"The maximum number of commits to include"`
+	MaxCommits *int `name:"max" help:"The maximum number of commits to include"`
 
-	Version bool `short:"v" long:"version" description:"Display version information"`
+	Version kong.VersionFlag `short:"v" help:"Display version information"`
 }
 
-const parseArgs = flags.HelpFlag | flags.PassDoubleDash
-
 var opts Options
-var parser = flags.NewParser(&opts, parseArgs)
-var commandCompleted = errors.New("completed")
-
-//nolint:unused
-var commandError = errors.New("command failed")
 
 func main() {
-	parser := flags.NewParser(&opts, parseArgs)
-	parser.SubcommandsOptional = true
-	_, err := parser.Parse()
-	handleError(err)
-
-	if opts.Version {
-		fmt.Printf("%s %s (%s)\n", projectName, version, commit)
-		return
-	}
+	kong.Parse(&opts,
+		kong.Name(projectName),
+		kong.Description("Generate a changelog from GitHub commits"),
+		kong.Vars{"version": fmt.Sprintf("%s %s (%s)", projectName, version, commit)},
+	)
 
 	initLogging()
 
 	config := model.LoadOrNewConfig(opts.Config, opts.Owner, opts.Repo)
-	err = validateConfig(config)
-	handleError(err)
+	err := validateConfig(config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		os.Exit(1)
+	}
 
 	config.MaxCommits = opts.MaxCommits
 	if opts.Local != nil {
@@ -92,7 +83,10 @@ func main() {
 	}
 
 	err = changes.Generate(os.Stdout)
-	handleError(err)
+	if err != nil {
+		fmt.Fprintf(os.Stdout, "generation failed: %s", err)
+		os.Exit(1)
+	}
 }
 
 func validateConfig(opts *model.Config) error {
@@ -108,37 +102,14 @@ func validateConfig(opts *model.Config) error {
 	}
 
 	if len(required) > 0 {
-		msg := fmt.Sprintf("the required arguments %s and %s were not provided",
-			strings.Join(required[:len(required)-1], ", "), required[len(required)-1])
-		return &flags.Error{Type: flags.ErrRequired, Message: msg}
+		if len(required) == 1 {
+			return fmt.Errorf("the required argument %s was not provided", required[0])
+		}
+		return fmt.Errorf("the required arguments %s and %s were not provided",
+			required[0], required[1])
 	}
 
 	return nil
-}
-
-func handleError(err error) {
-	if err != nil {
-		if errors.Is(err, commandCompleted) {
-			os.Exit(0)
-		}
-
-		if flagError, ok := err.(*flags.Error); ok {
-			if flagError.Type == flags.ErrHelp {
-				parser.WriteHelp(os.Stdout)
-				os.Exit(0)
-			}
-
-			if flagError.Type == flags.ErrUnknownFlag {
-				_, _ = fmt.Fprintf(os.Stderr, "%s. Please use --help for available options.\n", strings.Replace(flagError.Message, "unknown", "Unknown", 1))
-				os.Exit(1)
-			}
-			_, _ = fmt.Fprintf(os.Stderr, "Error parsing command line options: %s\n", err)
-		} else {
-			_, _ = fmt.Fprintf(os.Stdout, "generation failed: %s", err)
-		}
-
-		os.Exit(1)
-	}
 }
 
 func initLogging() {
