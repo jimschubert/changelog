@@ -10,3 +10,21 @@ updates:
     directory: ".github/workflows"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "workflow"
+
+  # Go module updates
+  # Security updates are created immediately by Dependabot (regardless of schedule)
+  # and will be auto-merged via dependabot-auto-merge.yml workflow
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "deps"
+      include: "scope"

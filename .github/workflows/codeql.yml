@@ -11,13 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-name: Build Pull Request
-on:
-  pull_request:
 
+# see: https://codeql.github.com/
+name: "CodeQL"
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master"]
+  schedule:
+    - cron: '37 9 * * 4'
 jobs:
-  build:
-    uses: jimschubert/.workflows/.github/workflows/go-pr.yml@main
-    with:
-      golangci-lint-version: "v2.7.2"
-    secrets: inherit
+  # Minimal usage (analyzes 'actions' and 'go' by default):
+  codeql:
+    uses: jimschubert/.workflows/.github/workflows/codeql.yml@main
+  # Or, specify languages:
+  # codeql:
+  #   uses: jimschubert/.workflows/.github/workflows/codeql.yml@main
+  #   with:
+  #     languages: '["javascript-typescript", "python"]'
