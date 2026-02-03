@@ -1,10 +1,10 @@
-// Copyright 2020 Jim Schubert
+// Copyright 2020-2026 Jim Schubert
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -108,10 +108,10 @@ func (s gitService) Process(parentContext *context.Context, wg *sync.WaitGroup, 
 		return nil
 	})
 
-	if err != nil && !errors.Is(err, io.EOF){
+	if err != nil && !errors.Is(err, io.EOF) {
 		log.WithFields(log.Fields{
 			"from": fromTag.Hash().String(),
-			"to": toTag.Hash().String(),
+			"to":   toTag.Hash().String(),
 		}).Fatalf("Failed while processing commits.")
 	}
 

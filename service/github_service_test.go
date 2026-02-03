@@ -1,10 +1,10 @@
-// Copyright 2020 Jim Schubert
+// Copyright 2020-2026 Jim Schubert
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -119,25 +119,25 @@ func Test_githubService_convertToChangeItem_authorInfo(t *testing.T) {
 		commit *github.RepositoryCommit
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name    string
+		fields  fields
+		args    args
 		compare model.ChangeItem
 	}{
 		{
 			name:   "github api doc example commit",
 			fields: fields{newContextual(nil), &model.Config{}},
-			args:   args{commitFromJson(t,"commit.json") },
+			args:   args{commitFromJson(t, "commit.json")},
 			compare: model.ChangeItem{
-				AuthorRaw: github.String("octocat"),
-				AuthorURLRaw: github.String("https://github.com/octocat"),
+				AuthorRaw:        github.String("octocat"),
+				AuthorURLRaw:     github.String("https://github.com/octocat"),
 				CommitMessageRaw: github.String("Fix all the bugs"),
 			},
 		},
 		{
 			name:   "issue 1",
 			fields: fields{newContextual(nil), &model.Config{}},
-			args:   args{commitFromJson(t,"issue_1.json") },
+			args:   args{commitFromJson(t, "issue_1.json")},
 			compare: model.ChangeItem{
 				CommitMessageRaw: github.String("Fix all the bugs"),
 			},
