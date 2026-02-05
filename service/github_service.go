@@ -68,8 +68,8 @@ func (s githubService) Process(parentContext *context.Context, wg *sync.WaitGrou
 		return compareError
 	}
 
-	max := min(len((*comparison).Commits), (*s.config).GetMaxCommits())
-	commits := make([]github.RepositoryCommit, max)
+	maximum := min(len((*comparison).Commits), (*s.config).GetMaxCommits())
+	commits := make([]github.RepositoryCommit, maximum)
 
 	copy(commits, (*comparison).Commits)
 	for _, commit := range commits {
@@ -156,11 +156,4 @@ func (s githubService) shouldExcludeViaRepositoryCommit(commit *github.Repositor
 	}
 
 	return false
-}
-
-func min(a int, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
