@@ -265,16 +265,20 @@ func TestChangelog_writeChangelog(t *testing.T) {
 	expectedGrouped := func(c *model.Config, from string, to string, items map[string][]model.ChangeItem) string {
 		result := &bytes.Buffer{}
 		result.WriteString(fmt.Sprintf("## %s\n", to))
-		for key, changeItems := range items {
-			result.WriteString("\n")
-			result.WriteString("### ")
-			result.WriteString(key)
-			result.WriteString("\n\n")
-			for _, item := range changeItems {
-				result.WriteString(ci(&item))
+		// Iterate in config order, just as done in writeConfig
+		// if not, the keys of map[string][]model.ChangeItem are not guaranteed to be in config order
+		// and Go doesn't have a built-in ordered map.
+		for _, grouping := range *c.Groupings {
+			if changeItems, ok := items[grouping.Name]; ok && len(changeItems) > 0 {
+				result.WriteString("\n")
+				result.WriteString("### ")
+				result.WriteString(grouping.Name)
+				result.WriteString("\n\n")
+				for _, item := range changeItems {
+					result.WriteString(ci(&item))
+				}
 			}
 		}
-
 		result.WriteString("\n")
 		result.WriteString(compareUrl(c, from, to))
 		return result.String()
