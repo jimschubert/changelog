@@ -144,7 +144,7 @@ func (c *Changelog) Generate(writer io.Writer) error {
 func (c *Changelog) GetGitURLs() (*model.GitURLs, error) {
 	gh := "https://github.com"
 	if c.Enterprise != nil {
-		gh = strings.TrimRight(*c.Enterprise, "/api")
+		gh = strings.TrimSuffix(*c.Enterprise, "/api")
 	}
 	u, err := url.Parse(gh)
 	if err != nil {
@@ -176,7 +176,7 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, writer io.Writer) err
 	if err != nil {
 		log.Warn("Unable to determine urls for compare, diff, and patch.")
 	} else {
-		compareURL =  u.CompareURL
+		compareURL = u.CompareURL
 		diffURL = u.DiffURL
 		patchURL = u.PatchURL
 	}
@@ -191,7 +191,7 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, writer io.Writer) err
 	grouped := make(map[string][]model.ChangeItem)
 	for _, item := range all {
 		g := item.Group()
-		if len(g) > 0  {
+		if len(g) > 0 {
 			grouped[g] = append(grouped[g], item)
 		}
 	}
@@ -203,7 +203,7 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, writer io.Writer) err
 			if grouping.Name != "" {
 				if items, ok := grouped[grouping.Name]; ok && len(items) > 0 {
 					log.WithFields(log.Fields{
-						"name": grouping.Name,
+						"name":  grouping.Name,
 						"count": len(items),
 					}).Debug("found template grouping data")
 					templateGroups = append(templateGroups, model.TemplateGroup{

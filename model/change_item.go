@@ -16,6 +16,7 @@ package model
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -142,7 +143,7 @@ func (ci *ChangeItem) PullID() (string, error) {
 		return id, nil
 	}
 
-	return "", fmt.Errorf("no pull url available")
+	return "", errors.New("no pull url available")
 }
 
 // Group is the targeted group for a commit, or empty string

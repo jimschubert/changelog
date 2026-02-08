@@ -98,7 +98,7 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 			var authorRaw *string
 			var authorUrlRaw *string
 			if commit.GetCommit() != nil {
-				commitAuthor := *(*commit.GetCommit()).Author
+				commitAuthor := commit.GetCommit().GetAuthor()
 				d := commitAuthor.GetDate()
 				t = &d
 			}
@@ -130,6 +130,8 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 						// In the unlikely case that an unexpected pull url is provided by GitHub API, just emit the change item
 						ch <- ci
 					} else {
+						// ignoring error here is intentional. if the ID is not parseable (should never happen), just evaluate the rules.
+						// the API call to retrieve PR will then also fail and exclude will be false.
 						pr, _ := strconv.Atoi(pullId)
 						contextual := s.contextual
 						_, exclude := shouldExcludeViaPullAttributes(pr, contextual, ctx, s.config)
