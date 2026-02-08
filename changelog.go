@@ -198,8 +198,8 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, writer io.Writer) err
 
 	templateGroups := make([]model.TemplateGroup, 0)
 
-	if c.Groupings != nil {
-		for _, grouping := range *c.Groupings {
+	if len(c.Groupings) > 0 {
+		for _, grouping := range c.Groupings {
 			if grouping.Name != "" {
 				if items, ok := grouped[grouping.Name]; ok && len(items) > 0 {
 					log.WithFields(log.Fields{

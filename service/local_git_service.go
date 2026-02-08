@@ -135,8 +135,8 @@ func (s *gitService) convertToChangeItem(commit *object.Commit, ch chan *model.C
 		return
 	}
 
-	grouping := (*s.config).FindGroup(commit.Message)
-	if (*s.config).ShouldExcludeByText(grouping) {
+	grouping := s.config.FindGroup(commit.Message)
+	if s.config.ShouldExcludeByText(grouping) {
 		return
 	}
 
@@ -202,9 +202,9 @@ func (s *gitService) shouldExcludeViaRepositoryCommit(commit *object.Commit) boo
 		return false
 	}
 
-	if (*s.config).Exclude != nil && len(*(*s.config).Exclude) > 0 {
+	if len(s.config.Exclude) > 0 {
 		title := strings.Split(commit.Message, "\n")[0]
-		return (*s.config).ShouldExcludeByText(&title)
+		return s.config.ShouldExcludeByText(&title)
 	}
 
 	return false

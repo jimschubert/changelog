@@ -183,7 +183,7 @@ func TestCommitAscendingSorter(t *testing.T) {
 
 func TestChangelog_writeChangelog(t *testing.T) {
 	p := func(s string) *string { return &s }
-	gp := func(arr []model.Grouping) *[]model.Grouping { return &arr }
+	gp := func(arr []model.Grouping) []model.Grouping { return arr }
 	fromTimestamp := func(ts int64) *time.Time {
 		t := time.Unix(ts, 0)
 		return &t
@@ -268,7 +268,7 @@ func TestChangelog_writeChangelog(t *testing.T) {
 		// Iterate in config order, just as done in writeConfig
 		// if not, the keys of map[string][]model.ChangeItem are not guaranteed to be in config order
 		// and Go doesn't have a built-in ordered map.
-		for _, grouping := range *c.Groupings {
+		for _, grouping := range c.Groupings {
 			if changeItems, ok := items[grouping.Name]; ok && len(changeItems) > 0 {
 				result.WriteString("\n")
 				result.WriteString("### ")

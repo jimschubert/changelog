@@ -15,10 +15,9 @@
 package model
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -37,6 +36,11 @@ type Grouping struct {
 	Patterns []string `json:"patterns"`
 }
 
+// String returns a string representation of Grouping
+func (g Grouping) String() string {
+	return fmt.Sprintf("{%s %v}", g.Name, g.Patterns)
+}
+
 // Config provides a user with more robust options for Changelog configuration
 type Config struct {
 	// Defines whether we resolve commits only or query additional information from pull requests
@@ -50,12 +54,12 @@ type Config struct {
 
 	// A set of Grouping objects which allow to define groupings for changelog output.
 	// Commits are associated with the first matching group.
-	Groupings *[]Grouping `json:"groupings,omitempty"`
+	Groupings []Grouping `json:"groupings,omitempty"`
 
 	// As set of square-bracket regex patterns, wrapped texts and/or labels to be excluded from output.
 	// If the commit message or pr labels reference any text in this Exclude set, that commit
-	// will be ignored./**/
-	Exclude *[]string `json:"exclude,omitempty"`
+	// will be ignored.
+	Exclude []string `json:"exclude,omitempty"`
 
 	// Optional base url when targeting GitHub Enterprise
 	Enterprise *string `json:"enterprise,omitempty"`
@@ -76,7 +80,7 @@ type Config struct {
 
 // Load a Config from path
 func (c *Config) Load(path string) error {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 
 	if os.IsNotExist(err) {
 		return nil
@@ -91,6 +95,17 @@ func (c *Config) Load(path string) error {
 	}
 
 	return yaml.Unmarshal(b, c)
+}
+
+// Validate checks that required fields are set
+func (c *Config) Validate() error {
+	if c.Owner == "" {
+		return errors.New("owner is required")
+	}
+	if c.Repo == "" {
+		return errors.New("repo is required")
+	}
+	return nil
 }
 
 // GetPreferLocal returns the user-specified preference for local commit querying, otherwise the default of 'false'
@@ -113,11 +128,15 @@ func (c *Config) GetMaxCommits() int {
 	return *c.MaxCommits
 }
 
+// ShouldExcludeByText checks if the given text matches any exclude pattern
+// Note: Patterns are compiled on each call rather than cached. While this has a minor performance
+// cost, it ensures correctness when Groupings or Exclude are modified after loading (since Config
+// is a public type). The actual regex matching (re.Match) dominates the performance, not compilation.
 func (c *Config) ShouldExcludeByText(text *string) bool {
-	if text == nil || c.Exclude == nil || len(*c.Exclude) == 0 {
+	if text == nil || len(c.Exclude) == 0 {
 		return false
 	}
-	for _, pattern := range *c.Exclude {
+	for _, pattern := range c.Exclude {
 		re := regexp.MustCompile(pattern)
 		if re.Match([]byte(*text)) {
 			log.WithFields(log.Fields{"text": *text, "pattern": pattern}).Debug("exclude via pattern")
@@ -127,48 +146,55 @@ func (c *Config) ShouldExcludeByText(text *string) bool {
 	return false
 }
 
+// FindGroup determines the grouping for a commit message based on configured patterns
+// Note: Patterns are compiled on each call rather than cached. While this has a minor performance
+// cost, it ensures correctness when Groupings or Exclude are modified after loading (since Config
+// is a public type). The actual regex matching (re.Match) dominates the performance, not compilation.
 func (c *Config) FindGroup(commitMessage string) *string {
-	var grouping *string
-	if c.Groupings != nil && len(*c.Groupings) > 0 {
-		title := strings.Split(commitMessage, "\n")[0]
-		for _, g := range *c.Groupings {
-			for _, pattern := range g.Patterns {
-				re := regexp.MustCompile(pattern)
-				if re.Match([]byte(title)) {
-					grouping = &g.Name
-					log.WithFields(log.Fields{"grouping": *grouping, "title": title}).Debug("found group name for commit")
-					return grouping
-				}
+	if len(c.Groupings) == 0 {
+		return nil
+	}
+
+	title := strings.Split(commitMessage, "\n")[0]
+
+	for i := range c.Groupings {
+		for _, pattern := range c.Groupings[i].Patterns {
+			re := regexp.MustCompile(pattern)
+			if re.Match([]byte(title)) {
+				grouping := c.Groupings[i].Name
+				log.WithFields(log.Fields{"grouping": grouping, "title": title}).Debug("found group name for commit")
+				return &grouping
 			}
 		}
 	}
-	return grouping
+
+	return nil
 }
 
 // String displays a human readable representation of a Config
 func (c *Config) String() string {
-	var buffer bytes.Buffer
+	var b strings.Builder
 
-	buffer.WriteString("Config: { ")
-	buffer.WriteString(fmt.Sprintf(`ResolveType: %s`, c.ResolveType))
-	buffer.WriteString(fmt.Sprintf(` Owner: %s`, c.Owner))
-	buffer.WriteString(fmt.Sprintf(` Repo: %s`, c.Repo))
-	buffer.WriteString(fmt.Sprintf(` Groupings: %v`, c.Groupings))
-	buffer.WriteString(fmt.Sprintf(` Exclude: %v`, c.Exclude))
-	buffer.WriteString(" Enterprise: ")
+	b.WriteString("Config: { ")
+	fmt.Fprintf(&b, "ResolveType: %s", c.ResolveType)
+	fmt.Fprintf(&b, " Owner: %s", c.Owner)
+	fmt.Fprintf(&b, " Repo: %s", c.Repo)
+	fmt.Fprintf(&b, " Groupings: %v", c.Groupings)
+	fmt.Fprintf(&b, " Exclude: %v", c.Exclude)
+	b.WriteString(" Enterprise: ")
 	if c.Enterprise != nil {
-		buffer.WriteString(*c.Enterprise)
+		b.WriteString(*c.Enterprise)
 	}
-	buffer.WriteString(" Template: ")
+	b.WriteString(" Template: ")
 	if c.Template != nil {
-		buffer.WriteString(*c.Template)
+		b.WriteString(*c.Template)
 	}
-	buffer.WriteString(" Sort: ")
+	b.WriteString(" Sort: ")
 	if c.SortDirection != nil {
-		buffer.WriteString((*c.SortDirection).String())
+		b.WriteString((*c.SortDirection).String())
 	}
-	buffer.WriteString(" }")
-	return buffer.String()
+	b.WriteString(" }")
+	return b.String()
 }
 
 // LoadOrNewConfig will attempt to load path, otherwise returns a newly constructed config.

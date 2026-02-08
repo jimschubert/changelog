@@ -63,12 +63,12 @@ func (s githubService) Process(parentContext *context.Context, wg *sync.WaitGrou
 
 	client := contextual.GetClient()
 
-	comparison, _, compareError := client.Repositories.CompareCommits(compareContext, (*s.config).Owner, (*s.config).Repo, from, to)
+	comparison, _, compareError := client.Repositories.CompareCommits(compareContext, s.config.Owner, s.config.Repo, from, to)
 	if compareError != nil {
 		return compareError
 	}
 
-	maximum := min(len((*comparison).Commits), (*s.config).GetMaxCommits())
+	maximum := min(len((*comparison).Commits), s.config.GetMaxCommits())
 	commits := make([]github.RepositoryCommit, maximum)
 
 	copy(commits, (*comparison).Commits)
@@ -107,8 +107,8 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 				authorUrlRaw = commit.Author.HTMLURL
 			}
 
-			grouping := (*s.config).FindGroup(commit.GetCommit().GetMessage())
-			excludeByGroup = (*s.config).ShouldExcludeByText(grouping)
+			grouping := s.config.FindGroup(commit.GetCommit().GetMessage())
+			excludeByGroup = s.config.ShouldExcludeByText(grouping)
 
 			if !excludeByGroup {
 				// TODO: Max count?
@@ -152,9 +152,9 @@ func (s githubService) shouldExcludeViaRepositoryCommit(commit *github.Repositor
 		return false
 	}
 
-	if (*s.config).Exclude != nil && len(*(*s.config).Exclude) > 0 {
+	if len(s.config.Exclude) > 0 {
 		title := strings.Split(commit.GetCommit().GetMessage(), "\n")[0]
-		return (*s.config).ShouldExcludeByText(&title)
+		return s.config.ShouldExcludeByText(&title)
 	}
 
 	return false
