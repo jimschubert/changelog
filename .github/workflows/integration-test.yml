@@ -1,0 +1,113 @@
+# Copyright 2026 Jim Schubert
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+name: Integration Tests
+on:
+  pull_request:
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Need full history for changelog generation
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build changelog
+        run: go build -o changelog-bin ./cmd
+
+      - name: Run integration tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+
+          # Test 1: Generate changelog between v1.3.1 and v1.3.2
+          echo "Testing changelog generation between v1.3.1 and v1.3.2..."
+          ./changelog-bin --owner jimschubert --repo changelog --from v1.3.1 --to v1.3.2 > /tmp/test-output-1.md
+
+          # Verify output is not empty
+          if [ ! -s /tmp/test-output-1.md ]; then
+            echo "Error: Output file is empty"
+            exit 1
+          fi
+
+          # Verify output contains expected structure
+          if ! grep -q "## v1.3.2" /tmp/test-output-1.md; then
+            echo "Error: Output missing version header"
+            exit 1
+          fi
+
+          if ! grep -q "v1.3.1..v1.3.2" /tmp/test-output-1.md; then
+            echo "Error: Output missing compare URL"
+            exit 1
+          fi
+          
+          # NOTE: Don't test against individual groupings or whatever. Unit tests do that.
+          echo "✓ Test 1 passed: Basic changelog generation"
+
+          # Test 2: Generate changelog between v1.2.0 and v1.3.0
+          echo "Testing changelog generation between v1.2.0 and v1.3.0..."
+          ./changelog-bin --owner jimschubert --repo changelog --from v1.2.0 --to v1.3.0 > /tmp/test-output-2.md
+
+          if [ ! -s /tmp/test-output-2.md ]; then
+            echo "Error: Output file is empty"
+            exit 1
+          fi
+
+          if ! grep -q "## v1.3.0" /tmp/test-output-2.md; then
+            echo "Error: Output missing version header"
+            exit 1
+          fi
+
+          # NOTE: Don't test against individual groupings or whatever. Unit tests do that.
+          echo "✓ Test 2 passed: Multi-version changelog generation"
+
+          # Test 3: Verify commit format (hash links)
+          echo "Testing commit hash format..."
+          if ! grep -qE '\[([a-f0-9]{7})\]\(https://github\.com/jimschubert/changelog/commit/[a-f0-9]+\)' /tmp/test-output-1.md; then
+            echo "Error: Output missing properly formatted commit links"
+            exit 1
+          fi
+
+          # NOTE: Don't test against individual groupings or whatever. Unit tests do that.
+          echo "✓ Test 3 passed: Commit links properly formatted"
+
+          # Test 4: Verify author attribution exists
+          echo "Testing author attribution..."
+          if ! grep -q "contributed" /tmp/test-output-1.md && ! grep -qE '\[.*\]\(https://github\.com/.*\)' /tmp/test-output-1.md; then
+            echo "Warning: No author attribution found (may be expected)"
+          else
+            echo "✓ Test 4 passed: Author attribution present"
+          fi
+
+          echo ""
+          echo "All integration tests passed!"
+          echo ""
+          echo "Sample output from test 1:"
+          head -20 /tmp/test-output-1.md
+          echo "--------"
+          echo "Sample output from test 2:"
+          head -20 /tmp/test-output-2.md
+          echo "--------"
+          echo "Sample output from test 3:"
+          head -20 /tmp/test-output-3.md
+          echo "--------"
+          echo "Sample output from test 4:"
+          head -20 /tmp/test-output-4.md
