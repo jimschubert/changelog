@@ -151,15 +151,11 @@ func (s *gitService) convertToChangeItem(commit *object.Commit, ch chan *model.C
 		return
 	}
 
-	createCommitLocation := func(hash string) string {
-		// Create a copy to avoid mutating the shared baseURL
-		u := *baseURL
-		u.Path = path.Join(u.Path, s.config.Owner, s.config.Repo, "commit", hash)
-		return u.String()
-	}
-
 	hash := commit.Hash.String()
-	commitLocation := createCommitLocation(hash)
+	// Create a copy to avoid mutating the shared baseURL
+	u := *baseURL
+	u.Path = path.Join(u.Path, s.config.Owner, s.config.Repo, "commit", hash)
+	commitLocation := u.String()
 	t := &commit.Committer.When
 
 	ci := &model.ChangeItem{
@@ -203,7 +199,7 @@ func (s *gitService) shouldExcludeViaRepositoryCommit(commit *object.Commit) boo
 	}
 
 	if len(s.config.Exclude) > 0 {
-		title := strings.Split(commit.Message, "\n")[0]
+		title, _, _ := strings.Cut(commit.Message, "\n")
 		return s.config.ShouldExcludeByText(&title)
 	}
 
