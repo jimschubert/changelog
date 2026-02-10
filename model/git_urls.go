@@ -16,7 +16,7 @@ package model
 
 // GitURLs contains locations commonly found in changelogs
 type GitURLs struct {
-	CompareURL string
-	DiffURL    string
-	PatchURL   string
+	CompareURL string // URL to compare different commits (e.g., on GitHub)
+	DiffURL    string // URL to view the difference between two commits
+	PatchURL   string // URL for a patch file generated from two commits
 }
