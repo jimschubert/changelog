@@ -33,29 +33,29 @@ type githubService struct {
 
 // NewGitHubService creates a new Store for accessing commits from the GitHub API
 func NewGitHubService() Store {
-	service := githubService{}
+	service := &githubService{}
 	return service
 }
 
 // WithClient applies a GitHub client to the Store
-func (s githubService) WithClient(client *github.Client) Store {
+func (s *githubService) WithClient(client *github.Client) Store {
 	s.contextual = newContextual(client)
 	return s
 }
 
 // WithConfig applies a Config instance to the Store
-func (s githubService) WithConfig(config *model.Config) Store {
+func (s *githubService) WithConfig(config *model.Config) Store {
 	s.config = config
 	return s
 }
 
 // GetContextual returns the context wrapper for this service
-func (s githubService) GetContextual() *Contextual {
+func (s *githubService) GetContextual() *Contextual {
 	return s.contextual
 }
 
 // Process queries the service for commits, converting to a ChangeItem and sending to the channel
-func (s githubService) Process(parentContext *context.Context, wg *sync.WaitGroup, ciChan chan *model.ChangeItem, from string, to string) error {
+func (s *githubService) Process(parentContext *context.Context, wg *sync.WaitGroup, ciChan chan *model.ChangeItem, from string, to string) error {
 	contextual := s.contextual
 
 	compareContext, cancel := contextual.CreateContext(parentContext)
@@ -84,7 +84,7 @@ func (s githubService) Process(parentContext *context.Context, wg *sync.WaitGrou
 	return nil
 }
 
-func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch chan *model.ChangeItem, wg *sync.WaitGroup, ctx *context.Context) {
+func (s *githubService) convertToChangeItem(commit *github.RepositoryCommit, ch chan *model.ChangeItem, wg *sync.WaitGroup, ctx *context.Context) {
 	defer wg.Done()
 	var isMergeCommit = false
 	if commit.GetCommit() != nil && len(commit.GetCommit().Parents) > 1 {
@@ -147,7 +147,7 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 	}
 }
 
-func (s githubService) shouldExcludeViaRepositoryCommit(commit *github.RepositoryCommit) bool {
+func (s *githubService) shouldExcludeViaRepositoryCommit(commit *github.RepositoryCommit) bool {
 	if s.config == nil {
 		return false
 	}
