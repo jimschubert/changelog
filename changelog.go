@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -83,7 +82,6 @@ func (c *Changelog) Generate(writer io.Writer) error {
 	token, found := os.LookupEnv("GITHUB_TOKEN")
 	if !found {
 		log.Fatal("Environment variable GITHUB_TOKEN not found.")
-		os.Exit(1)
 	}
 
 	if len(c.From) == 0 {
@@ -97,7 +95,7 @@ func (c *Changelog) Generate(writer io.Writer) error {
 	tc := oauth2.NewClient(ctx, ts)
 
 	var client *github.Client
-	if c.Config.Enterprise != nil && len(*c.Config.Enterprise) > 0 {
+	if c.Config.Enterprise != nil && *c.Config.Enterprise != "" {
 		cl, e := github.NewEnterpriseClient(*c.Config.Enterprise, *c.Config.Enterprise, tc)
 		if e != nil {
 			return e
@@ -144,13 +142,15 @@ func (c *Changelog) Generate(writer io.Writer) error {
 func (c *Changelog) GetGitURLs() (*model.GitURLs, error) {
 	gh := "https://github.com"
 	if c.Enterprise != nil {
-		gh = strings.TrimRight(*c.Enterprise, "/api")
+		gh = strings.TrimSuffix(*c.Enterprise, "/api")
 	}
-	u, err := url.Parse(gh)
+	baseURL, err := url.Parse(gh)
 	if err != nil {
 		return nil, err
 	}
 	create := func(op string) string {
+		// Create a copy to avoid mutating the shared baseURL
+		u := *baseURL
 		end := fmt.Sprintf("%s...%s%s", c.From, c.To, op)
 		u.Path = path.Join(u.Path, c.Owner, c.Repo, "compare", end)
 		return u.String()
@@ -176,7 +176,7 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, writer io.Writer) err
 	if err != nil {
 		log.Warn("Unable to determine urls for compare, diff, and patch.")
 	} else {
-		compareURL =  u.CompareURL
+		compareURL = u.CompareURL
 		diffURL = u.DiffURL
 		patchURL = u.PatchURL
 	}
@@ -191,19 +191,19 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, writer io.Writer) err
 	grouped := make(map[string][]model.ChangeItem)
 	for _, item := range all {
 		g := item.Group()
-		if len(g) > 0  {
+		if len(g) > 0 {
 			grouped[g] = append(grouped[g], item)
 		}
 	}
 
 	templateGroups := make([]model.TemplateGroup, 0)
 
-	if c.Groupings != nil {
-		for _, grouping := range *c.Groupings {
+	if len(c.Groupings) > 0 {
+		for _, grouping := range c.Groupings {
 			if grouping.Name != "" {
 				if items, ok := grouped[grouping.Name]; ok && len(items) > 0 {
 					log.WithFields(log.Fields{
-						"name": grouping.Name,
+						"name":  grouping.Name,
 						"count": len(items),
 					}).Debug("found template grouping data")
 					templateGroups = append(templateGroups, model.TemplateGroup{
@@ -227,11 +227,11 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, writer io.Writer) err
 
 	var tpl = defaultTemplate
 	if c.Config.Template != nil {
-		b, templateErr := ioutil.ReadFile(*c.Config.Template)
+		b, templateErr := os.ReadFile(*c.Config.Template)
 		if templateErr != nil {
 			log.Warn("Unable to load template. Using default.")
 		} else {
-			log.Debug("Using default template.")
+			log.Debug("Using custom template.")
 			tpl = string(b)
 		}
 	}
@@ -241,8 +241,7 @@ func (c *Changelog) writeChangelog(all []model.ChangeItem, writer io.Writer) err
 		return err
 	}
 
-	_ = tmpl.Execute(writer, d)
-	return nil
+	return tmpl.Execute(writer, d)
 }
 
 type CommitDescendingSorter []model.ChangeItem

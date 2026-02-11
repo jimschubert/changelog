@@ -15,7 +15,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"regexp"
 	"strings"
@@ -49,11 +48,11 @@ func applyPullPropertiesChangeItem(ci *model.ChangeItem) {
 		baseUrl := ci.CommitURL()
 		idx := strings.LastIndex(baseUrl, "commit")
 		if idx > 0 {
-			var buffer bytes.Buffer
-			buffer.WriteString(baseUrl[0:idx])
-			buffer.WriteString("pull/")
-			buffer.WriteString(match[1])
-			result := buffer.String()
+			var builder strings.Builder
+			builder.WriteString(baseUrl[0:idx])
+			builder.WriteString("pull/")
+			builder.WriteString(match[1])
+			result := builder.String()
 			ci.PullURLRaw = &result
 
 			log.WithFields(log.Fields{
