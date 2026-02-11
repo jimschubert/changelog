@@ -3,7 +3,7 @@ module github.com/jimschubert/changelog
 go 1.25
 
 require (
-	github.com/alecthomas/kong v1.13.0
+	github.com/alecthomas/kong v1.14.0
 	github.com/go-git/go-git/v5 v5.16.5
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-github/v29 v29.0.3
