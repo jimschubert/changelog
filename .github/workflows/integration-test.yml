@@ -17,6 +17,8 @@ on:
 
 jobs:
   integration-test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
