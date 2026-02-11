@@ -108,9 +108,4 @@ jobs:
           echo "--------"
           echo "Sample output from test 2:"
           head -20 /tmp/test-output-2.md
-          echo "--------"
-          echo "Sample output from test 3:"
-          head -20 /tmp/test-output-3.md
-          echo "--------"
-          echo "Sample output from test 4:"
-          head -20 /tmp/test-output-4.md
+        
