@@ -83,7 +83,8 @@ jobs:
 
           # Test 3: Verify commit format (hash links)
           echo "Testing commit hash format..."
-          if ! grep -qE '\[([a-f0-9]{7})\]\(https://github\.com/jimschubert/changelog/commit/[a-f0-9]+\)' /tmp/test-output-1.md; then
+          
+          if ! grep -qE '\[([a-fA-F0-9]{7})\]\(https://github\.com/jimschubert/changelog/commit/[a-fA-F0-9]+\)' /tmp/test-output-1.md; then
             echo "Error: Output missing properly formatted commit links"
             exit 1
           fi
