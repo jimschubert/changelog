@@ -33,29 +33,29 @@ type githubService struct {
 
 // NewGitHubService creates a new Store for accessing commits from the GitHub API
 func NewGitHubService() Store {
-	service := githubService{}
+	service := &githubService{}
 	return service
 }
 
 // WithClient applies a GitHub client to the Store
-func (s githubService) WithClient(client *github.Client) Store {
+func (s *githubService) WithClient(client *github.Client) Store {
 	s.contextual = newContextual(client)
 	return s
 }
 
 // WithConfig applies a Config instance to the Store
-func (s githubService) WithConfig(config *model.Config) Store {
+func (s *githubService) WithConfig(config *model.Config) Store {
 	s.config = config
 	return s
 }
 
 // GetContextual returns the context wrapper for this service
-func (s githubService) GetContextual() *Contextual {
+func (s *githubService) GetContextual() *Contextual {
 	return s.contextual
 }
 
 // Process queries the service for commits, converting to a ChangeItem and sending to the channel
-func (s githubService) Process(parentContext *context.Context, wg *sync.WaitGroup, ciChan chan *model.ChangeItem, from string, to string) error {
+func (s *githubService) Process(parentContext *context.Context, wg *sync.WaitGroup, ciChan chan *model.ChangeItem, from string, to string) error {
 	contextual := s.contextual
 
 	compareContext, cancel := contextual.CreateContext(parentContext)
@@ -63,13 +63,13 @@ func (s githubService) Process(parentContext *context.Context, wg *sync.WaitGrou
 
 	client := contextual.GetClient()
 
-	comparison, _, compareError := client.Repositories.CompareCommits(compareContext, (*s.config).Owner, (*s.config).Repo, from, to)
+	comparison, _, compareError := client.Repositories.CompareCommits(compareContext, s.config.Owner, s.config.Repo, from, to)
 	if compareError != nil {
 		return compareError
 	}
 
-	max := min(len((*comparison).Commits), (*s.config).GetMaxCommits())
-	commits := make([]github.RepositoryCommit, max)
+	maximum := min(len((*comparison).Commits), s.config.GetMaxCommits())
+	commits := make([]github.RepositoryCommit, maximum)
 
 	copy(commits, (*comparison).Commits)
 	for _, commit := range commits {
@@ -84,7 +84,7 @@ func (s githubService) Process(parentContext *context.Context, wg *sync.WaitGrou
 	return nil
 }
 
-func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch chan *model.ChangeItem, wg *sync.WaitGroup, ctx *context.Context) {
+func (s *githubService) convertToChangeItem(commit *github.RepositoryCommit, ch chan *model.ChangeItem, wg *sync.WaitGroup, ctx *context.Context) {
 	defer wg.Done()
 	var isMergeCommit = false
 	if commit.GetCommit() != nil && len(commit.GetCommit().Parents) > 1 {
@@ -98,7 +98,7 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 			var authorRaw *string
 			var authorUrlRaw *string
 			if commit.GetCommit() != nil {
-				commitAuthor := *(*commit.GetCommit()).Author
+				commitAuthor := commit.GetCommit().GetAuthor()
 				d := commitAuthor.GetDate()
 				t = &d
 			}
@@ -107,8 +107,8 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 				authorUrlRaw = commit.Author.HTMLURL
 			}
 
-			grouping := (*s.config).FindGroup(commit.GetCommit().GetMessage())
-			excludeByGroup = (*s.config).ShouldExcludeByText(grouping)
+			grouping := s.config.FindGroup(commit.GetCommit().GetMessage())
+			excludeByGroup = s.config.ShouldExcludeByText(grouping)
 
 			if !excludeByGroup {
 				// TODO: Max count?
@@ -130,6 +130,8 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 						// In the unlikely case that an unexpected pull url is provided by GitHub API, just emit the change item
 						ch <- ci
 					} else {
+						// ignoring error here is intentional. if the ID is not parseable (should never happen), just evaluate the rules.
+						// the API call to retrieve PR will then also fail and exclude will be false.
 						pr, _ := strconv.Atoi(pullId)
 						contextual := s.contextual
 						_, exclude := shouldExcludeViaPullAttributes(pr, contextual, ctx, s.config)
@@ -145,22 +147,15 @@ func (s githubService) convertToChangeItem(commit *github.RepositoryCommit, ch c
 	}
 }
 
-func (s githubService) shouldExcludeViaRepositoryCommit(commit *github.RepositoryCommit) bool {
+func (s *githubService) shouldExcludeViaRepositoryCommit(commit *github.RepositoryCommit) bool {
 	if s.config == nil {
 		return false
 	}
 
-	if (*s.config).Exclude != nil && len(*(*s.config).Exclude) > 0 {
+	if len(s.config.Exclude) > 0 {
 		title := strings.Split(commit.GetCommit().GetMessage(), "\n")[0]
-		return (*s.config).ShouldExcludeByText(&title)
+		return s.config.ShouldExcludeByText(&title)
 	}
 
 	return false
-}
-
-func min(a int, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

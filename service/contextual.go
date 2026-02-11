@@ -56,9 +56,13 @@ func (ctx *Contextual) GetClient() *github.Client {
 
 // ClientFromContext returns a client if one exists on the context
 func (ctx *Contextual) ClientFromContext(c *context.Context) (*github.Client, error) {
+	if c == nil {
+		return nil, errors.New("nil context provided")
+	}
+
 	client, ok := (*c).Value(clientContext{}).(*github.Client)
 	if !ok {
-		return nil, errors.New("client not available in this context")
+		return nil, errors.New("github client not found in context")
 	}
 
 	return client, nil

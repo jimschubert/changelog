@@ -15,7 +15,7 @@
 package model
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -142,7 +142,7 @@ func (ci *ChangeItem) PullID() (string, error) {
 		return id, nil
 	}
 
-	return "", fmt.Errorf("no pull url available")
+	return "", errors.New("no pull url available")
 }
 
 // Group is the targeted group for a commit, or empty string
@@ -155,18 +155,18 @@ func (ci *ChangeItem) Group() string {
 
 // GoString displays debuggable format of ChangeItem
 func (ci *ChangeItem) GoString() string {
-	var buffer bytes.Buffer
+	var builder strings.Builder
 
-	buffer.WriteString("ChangeItem: {")
-	buffer.WriteString(" Commit: ")
-	buffer.WriteString(ci.CommitHashShort())
-	buffer.WriteString(", Author: ")
-	buffer.WriteString(ci.Author())
-	buffer.WriteString(", Time: ")
-	buffer.WriteString(fmt.Sprintf("%v", ci.Date()))
-	buffer.WriteString(", CommitMessage: ")
-	buffer.WriteString(ci.Title())
-	buffer.WriteString(" }")
+	builder.WriteString("ChangeItem: {")
+	builder.WriteString(" Commit: ")
+	builder.WriteString(ci.CommitHashShort())
+	builder.WriteString(", Author: ")
+	builder.WriteString(ci.Author())
+	builder.WriteString(", Time: ")
+	builder.WriteString(fmt.Sprintf("%v", ci.Date()))
+	builder.WriteString(", CommitMessage: ")
+	builder.WriteString(ci.Title())
+	builder.WriteString(" }")
 
-	return buffer.String()
+	return builder.String()
 }

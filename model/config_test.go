@@ -17,7 +17,6 @@ package model
 import (
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -36,7 +35,7 @@ func hash(s string) uint32 {
 
 func createTempConfig(t *testing.T, data string, extension string) (fileLocation string, cleanup func()) {
 	t.Helper()
-	tempDir, err := ioutil.TempDir("", "Config_test")
+	tempDir, err := os.MkdirTemp("", "Config_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,26 +43,26 @@ func createTempConfig(t *testing.T, data string, extension string) (fileLocation
 	testHash := hash(t.Name())
 	testFile := fmt.Sprintf("file-%d-%d.%s", r, testHash, extension)
 	filePath := filepath.Join(tempDir, testFile)
-	if err := ioutil.WriteFile(filePath, []byte(data), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(data), 0644); err != nil {
 		t.Fatal(err)
 	}
 	return filePath, func() { _ = os.RemoveAll(filePath) }
 }
 
-func ptrStringArray(s ...string) *[]string {
+func stringArray(s ...string) []string {
 	arr := make([]string, 0)
 	if len(s) > 0 {
 		arr = append(arr, s...)
 	}
-	return &arr
+	return arr
 }
 
-func groupings(g ...Grouping) *[]Grouping {
+func groupings(g ...Grouping) []Grouping {
 	arr := make([]Grouping, 0)
 	if len(g) > 0 {
 		arr = append(arr, g...)
 	}
-	return &arr
+	return arr
 }
 
 func TestConfig_Load(t *testing.T) {
@@ -74,8 +73,8 @@ func TestConfig_Load(t *testing.T) {
 		ResolveType   *ResolveType
 		Owner         string
 		Repo          string
-		Groupings     *[]Grouping
-		Exclude       *[]string
+		Groupings     []Grouping
+		Exclude       []string
 		Enterprise    *string
 		Template      *string
 		SortDirection *SortDirection
@@ -96,7 +95,7 @@ func TestConfig_Load(t *testing.T) {
 		{"Loads valid json repo-only", fields{JSONData: `{"repo": "changelog"}`, Repo: "changelog"}, false},
 		{"Fail on valid json with invalid data type repo-only", fields{JSONData: `{"repo": []}`}, true},
 		{"Loads valid json groupings-only", fields{JSONData: `{"groupings":[{"name":"g","patterns":[]}]}`, Groupings: groupings(Grouping{Name: "g", Patterns: make([]string, 0)})}, false},
-		{"Loads valid json exclude-only", fields{JSONData: `{"exclude": []}`, Exclude: ptrStringArray()}, false},
+		{"Loads valid json exclude-only", fields{JSONData: `{"exclude": []}`, Exclude: stringArray()}, false},
 		{"Loads valid json enterprise-only", fields{JSONData: `{"enterprise": "https://ghe.example.com"}`, Enterprise: p("https://ghe.example.com")}, false},
 		{"Loads valid json template-only", fields{JSONData: `{"template": "/path/to/template"}`, Template: p("/path/to/template")}, false},
 		{"Loads valid json ascending sort-only", fields{JSONData: `{"sort": "asc"}`, SortDirection: Ascending.Ptr()}, false},
@@ -108,7 +107,7 @@ func TestConfig_Load(t *testing.T) {
 				Owner:         "jimschubert",
 				Repo:          "ossify",
 				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{}}),
-				Exclude:       ptrStringArray("wip", "help wanted"),
+				Exclude:       stringArray("wip", "help wanted"),
 				Enterprise:    p("https://ghe.example.com"),
 				Template:      p("/path/to/template"),
 				SortDirection: Ascending.Ptr(),
@@ -122,7 +121,7 @@ func TestConfig_Load(t *testing.T) {
 				Owner:         "jimschubert",
 				Repo:          "ossify",
 				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{"^a", "\\bb$"}}, Grouping{Name: "bug", Patterns: []string{"cba", "\\b\\[f\\]\\b"}}),
-				Exclude:       ptrStringArray("wip", "help wanted"),
+				Exclude:       stringArray("wip", "help wanted"),
 				Enterprise:    p("https://ghe.example.com"),
 				Template:      p("/path/to/template"),
 				SortDirection: Ascending.Ptr(),
@@ -160,7 +159,14 @@ func TestConfig_Load(t *testing.T) {
 				}
 				assert.Equal(t, tt.fields.Owner, c.Owner)
 				assert.Equal(t, tt.fields.Repo, c.Repo)
-				assert.Equal(t, tt.fields.Groupings, c.Groupings)
+
+				// Compare groupings by name and patterns only (ignore compiled field)
+				assert.Equal(t, len(tt.fields.Groupings), len(c.Groupings))
+				for i := range tt.fields.Groupings {
+					assert.Equal(t, tt.fields.Groupings[i].Name, c.Groupings[i].Name)
+					assert.Equal(t, tt.fields.Groupings[i].Patterns, c.Groupings[i].Patterns)
+				}
+
 				assert.Equal(t, tt.fields.Exclude, c.Exclude)
 				assert.Equal(t, tt.fields.Enterprise, c.Enterprise)
 				assert.Equal(t, tt.fields.Template, c.Template)
@@ -176,8 +182,8 @@ func TestConfig_String(t *testing.T) {
 		ResolveType   *ResolveType
 		Owner         string
 		Repo          string
-		Groupings     *[]Grouping
-		Exclude       *[]string
+		Groupings     []Grouping
+		Exclude       []string
 		Enterprise    *string
 		Template      *string
 		SortDirection *SortDirection
@@ -193,14 +199,14 @@ func TestConfig_String(t *testing.T) {
 				Owner:         "jimschubert",
 				Repo:          "ossify",
 				Groupings:     groupings(Grouping{Name: "feature", Patterns: []string{}}, Grouping{Name: "bug", Patterns: []string{}}),
-				Exclude:       ptrStringArray("wip", "help wanted"),
+				Exclude:       stringArray("wip", "help wanted"),
 				Enterprise:    p("https://ghe.example.com"),
 				Template:      p("/path/to/template"),
 				SortDirection: Ascending.Ptr(),
-			}, `Config: { ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[{feature []} {bug []}] Exclude: &[wip help wanted] Enterprise: https://ghe.example.com Template: /path/to/template Sort: asc }`},
+			}, `Config: { ResolveType: commits Owner: jimschubert Repo: ossify Groupings: [{feature []} {bug []}] Exclude: [wip help wanted] Enterprise: https://ghe.example.com Template: /path/to/template Sort: asc }`},
 
 		{"outputs string for nil properties",
-			fields{}, `Config: { ResolveType: <nil> Owner:  Repo:  Groupings: <nil> Exclude: <nil> Enterprise:  Template:  Sort:  }`},
+			fields{}, `Config: { ResolveType: <nil> Owner:  Repo:  Groupings: [] Exclude: [] Enterprise:  Template:  Sort:  }`},
 	}
 	// Config: {ResolveType: commits Owner: jimschubert Repo: ossify Groupings: &[feature bug] Exclude: &[wip help wanted] Enterprise: 0xc00003c5b0 Template: 0xc00003c5c0}
 	for _, tt := range tests {
@@ -248,12 +254,12 @@ func TestConfig_FindGroup(t *testing.T) {
 	p := func(s string) *string {
 		return &s
 	}
-	g := func(grouping ...Grouping) *[]Grouping {
+	g := func(grouping ...Grouping) []Grouping {
 		arr := make([]Grouping, 0)
 		if len(grouping) > 0 {
 			arr = append(arr, grouping...)
 		}
-		return &arr
+		return arr
 	}
 	type fields struct {
 		Config *Config
