@@ -66,7 +66,7 @@ dockers_v2:
       - "{{ .Tag }}"
       - "v{{ .Major }}"
       - "v{{ .Major }}.{{ .Minor }}"
-    dockerfile: Dockerfile
+    dockerfile: release.Dockerfile
     labels:
       "org.opencontainers.image.created": "{{ .Date }}"
       "org.opencontainers.image.name": "{{ .ProjectName }}"
