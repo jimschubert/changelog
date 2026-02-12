@@ -15,6 +15,11 @@ name: Build Go
 on:
   push:
     branches: [ 'main', 'master', 'feature/*' ]
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+    # paths-ignore is ignored for tags
+    tags: [ 'v*' ]
 
 permissions:
   contents: write
@@ -23,6 +28,10 @@ permissions:
   id-token: write
   attestations: write
   artifact-metadata: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
