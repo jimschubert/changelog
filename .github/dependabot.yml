@@ -5,6 +5,16 @@
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
+
+# See https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/manage-your-dependency-security/configuring-access-to-private-registries-for-dependabot#docker-registry
+registries:
+  dhi:
+    type: "docker-registry"
+    url: "dhi.io"
+    replaces-base: true
+    username: ${{ secrets.DOCKER_USERNAME }}
+    password: ${{ secrets.DOCKER_TOKEN }}
+
 updates:
   - package-ecosystem: "github-actions"
     directory: ".github/workflows"
@@ -28,3 +38,10 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    registries:
+      - "dhi"
+    schedule:
+      interval: "daily"
