@@ -56,6 +56,9 @@ changelog:
       - '^\[doc[s]?\]'
       - '^wip:'
       - '^WIP:'
+sboms:
+  - id: archive
+    artifacts: archive
 docker_digest:
   name_template: "digests.txt"
 dockers_v2:
