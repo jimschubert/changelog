@@ -1,6 +1,6 @@
 module github.com/jimschubert/changelog
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/alecthomas/kong v1.15.0
@@ -9,7 +9,7 @@ require (
 	github.com/google/go-github/v29 v29.0.3
 	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
