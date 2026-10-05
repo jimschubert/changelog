@@ -14,12 +14,12 @@
 name: Build Go
 on:
   push:
-    branches: [ 'main', 'master', 'feature/*' ]
+    branches: ["main", "master", "feature/*"]
     paths-ignore:
-      - 'docs/**'
-      - 'README.md'
+      - "docs/**"
+      - "README.md"
     # paths-ignore is ignored for tags
-    tags: [ 'v*' ]
+    tags: ["v*"]
 
 permissions:
   contents: write
@@ -37,7 +37,7 @@ jobs:
   build:
     uses: jimschubert/.workflows/.github/workflows/go-build-goreleaser.yml@main
     with:
-      golangci-lint-version: "v2.7.2"
+      golangci-lint-version: "v2.11.4"
     secrets: inherit
 
   mirror-to-ghcr:
